@@ -37,6 +37,18 @@
 ## Histórias de usuário
 | # | História (Como… quero… para…) | INVEST: o que falha |
 |---|---|---|
+| HU01 | Como doador, quero publicar uma doação de alimentos, para disponibilizá-la para ONGs. | — (Atende ao INVEST) |
+| HU02 | Como ONG, quero visualizar as doações disponíveis, para encontrar alimentos que possam ser aproveitados. | — (Atende ao INVEST) |
+| HU03 | Como ONG, quero aceitar uma doação, para reservar os alimentos para minha organização. | — (Atende ao INVEST) |
+| HU04 | Como usuário, quero gerenciar todo o processo de doação, desde o cadastro até a entrega, incluindo notificações, histórico e avaliações, para controlar tudo em um único lugar. | **S, T:** Grande demais e difícil de testar como uma única história. |
+| HU05 | Como doador, quero publicar uma doação informando todos os dados necessários, validando automaticamente a validade, verificando a quantidade, calculando a distância até as ONGs, notificando as organizações próximas e registrando o histórico, para garantir que a doação seja distribuída corretamente. | **N, S:** Mistura muitas decisões e funcionalidades em uma única história. |
+
+### Quebra de Épico (HU04)
+**Épico:** Como usuário, quero gerenciar todo o processo de doação, desde o cadastro até a entrega, incluindo notificações, histórico e avaliações, para controlar tudo em um único lugar.
+
+- **HU04.1 — Publicar doação**: Como doador, quero publicar uma doação de alimentos, para disponibilizá-la para ONGs.
+- **HU04.2 — Aceitar doação**: Como ONG, quero aceitar uma doação disponível, para reservar os alimentos para minha organização.
+- **HU04.3 — Acompanhar doação**: Como doador ou ONG, quero acompanhar o status da doação, para saber em que etapa do processo ela está.
 
 ## Critérios de aceite
 **História X** — Dado … Quando … Então …
@@ -54,4 +66,21 @@
 - **Riscos e limitações:**
 
 ## Uso de IA
-O que geramos com IA, o que verificamos e o que alteramos.
+
+**a) Melhoria de História de Usuário (Doador)**
+- **História gerada pela IA:** "Como usuário, quero que o sistema tenha uma plataforma completa de doações com cadastro, login, publicação, busca, notificações, chat, mapas e histórico, para facilitar todo o processo."
+- **Problemas:** É muito grande, mistura várias funcionalidades e não deixa claro qual usuário está realizando cada ação.
+- **Corrigida:** Como doador, quero publicar uma doação de alimentos, para disponibilizá-la para ONGs.
+- **O que mudou:** Foi definido o ator (doador), uma única ação (publicar doação) e um objetivo claro. A história ficou menor, mais estimável e testável.
+
+**b) Melhoria de História de Usuário (ONG - Visualizar)**
+- **História gerada pela IA:** "Como ONG, quero ter acesso às doações para poder gerenciar tudo."
+- **Problemas:** "Ter acesso" e "gerenciar tudo" são vagos.
+- **Corrigida:** Como ONG, quero visualizar as doações disponíveis, para encontrar alimentos que possam ser aproveitados.
+- **O que mudou:** A ação ficou específica e é possível criar critérios de aceite para verificar se a funcionalidade funciona.
+
+**c) Melhoria de História de Usuário (ONG - Aceitar)**
+- **História gerada pela IA:** "Como usuário, quero aceitar uma doação e receber notificações, atualizar meu perfil e acompanhar o pedido."
+- **Problemas:** Existem várias funcionalidades diferentes na mesma história.
+- **Corrigida:** Como ONG, quero aceitar uma doação disponível, para reservar os alimentos para minha organização.
+- **O que mudou:** A história foi dividida, mantendo apenas uma funcionalidade e um benefício. Notificações, perfil e acompanhamento podem virar histórias separadas.
