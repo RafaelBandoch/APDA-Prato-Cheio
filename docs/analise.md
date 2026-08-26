@@ -51,7 +51,17 @@
 - **HU04.3 — Acompanhar doação**: Como doador ou ONG, quero acompanhar o status da doação, para saber em que etapa do processo ela está.
 
 ## Critérios de aceite
-**História X** — Dado … Quando … Então …
+**HU01 — Publicar doação**
+- Dado que sou um doador autenticado, quando publico uma doação informando alimento, quantidade e prazo de validade, então a doação passa a aparecer na listagem para as ONGs credenciadas.
+- Dado que uma doação publicada não é aceita por nenhuma ONG até 2 horas antes do prazo de validade, quando esse limite é atingido, então o sistema expira a doação, oculta-a da listagem e notifica o doador.
+
+**HU02 — Visualizar doações disponíveis**
+- Dado que sou uma ONG com credenciamento sanitário aprovado e status "Ativo", quando acesso a listagem, então vejo somente doações disponíveis, não expiradas e ainda não aceitas por outra ONG.
+- Dado que minha ONG está com credenciamento pendente ou reprovado, quando tento acessar a listagem, então o sistema bloqueia a visualização e informa a pendência.
+
+**HU03 — Aceitar doação**
+- Dado que uma doação está disponível, quando a ONG credenciada confirma o aceite, então o sistema trava o status da doação e a remove imediatamente da listagem pública, impedindo que outra ONG a aceite.
+- Dado que o doador definiu uma janela de coleta, quando a ONG aceita a doação, então o aceite só é confirmado se o horário de retirada estiver dentro dessa janela e dentro do prazo de validade à temperatura ambiente.
 
 ## Riscos
 | Risco | Probabilidade | Impacto | Mitigação |
