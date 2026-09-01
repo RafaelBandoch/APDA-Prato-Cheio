@@ -66,8 +66,17 @@
 ## Riscos
 | Risco | Probabilidade | Impacto | Mitigação |
 |---|---|---|---|
+| Uma ONG aceita a doação mas não retira dentro da janela de coleta combinada, deixando o alimento vencer "reservado" sem chegar a ninguém. | Média | Alto | Definir um prazo máximo para a ONG confirmar a retirada; se estourar, o sistema libera a doação de volta para a listagem automaticamente e registra a falha no histórico da ONG. |
+| A documentação sanitária de uma ONG vence, mas ela continua com status "Ativo" e aceitando doações sem estar apta para o manuseio, expondo a plataforma a risco regulatório. | Baixa | Alto | Cadastrar a validade do credenciamento como campo obrigatório; o sistema muda o status para "Pendente" automaticamente na data de expiração, bloqueando novos aceites até a ONG enviar a renovação. |
 
 ## Hipótese e experimento
+**Suposição do caso:** Estamos assumindo que as ONGs cadastradas acompanham a plataforma com frequência suficiente para aceitar uma doação publicada em até 15 minutos (Objetivo 3), mesmo sem nenhum mecanismo de alerta ativo.
+
+**Hipótese testável:** Se uma doação for publicada em horário comercial, pelo menos 70% das ONGs credenciadas na região vão aceitá-la em até 15 minutos apenas checando a listagem por conta própria, sem depender de notificação push ou ligação.
+
+**Experimento:** Rodar um piloto de 2 semanas com um grupo pequeno (3 restaurantes doadores e 5 ONGs credenciadas), publicando as doações reais na plataforma sem nenhum aviso adicional além do que já existe na tela. Medir, para cada doação publicada em horário comercial, o tempo entre a publicação e o aceite.
+
+**Critério de validação:** Se pelo menos 70% das doações forem aceitas dentro de 15 minutos, a suposição se confirma e nenhuma mudança é necessária. Se a taxa ficar abaixo disso, o problema não é falta de interesse das ONGs e sim falta de visibilidade — a solução passa a ser notificação ativa (push/SMS) em vez de depender da ONG checar a listagem sozinha.
 
 ## Decisão de análise
 - **Problema:**
