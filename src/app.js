@@ -17,6 +17,14 @@ export function criarApp() {
     }
   });
 
+  app.get('/api/doacoes/todas', async (req, res) => {
+    try {
+      res.json(await doacoes.listarTodas());
+    } catch (erro) {
+      res.status(400).json({ erro: erro.message });
+    }
+  });
+
   app.post('/api/doacoes', async (req, res) => {
     try {
       res.status(201).json(await doacoes.criarDoacao(req.body));
