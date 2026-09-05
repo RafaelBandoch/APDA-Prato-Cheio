@@ -10,7 +10,12 @@ export async function criarDoacao({ tipo, quantidade, validade }) {
 
 // História zero — "uma ONG vê as doações disponíveis".
 export async function listarDisponiveis() {
-  throw new Error('não implementado: listarDisponiveis');
+  return repo.listarDisponiveis();
+}
+
+// Lista todas as doações, em qualquer status (visão do doador/administração).
+export async function listarTodas() {
+  return repo.listarTodas();
 }
 
 // História zero — "uma ONG aceita uma doação".

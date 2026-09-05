@@ -15,14 +15,24 @@ export async function inserir({ tipo, quantidade, validade }) {
   return rows[0];
 }
 
-// TODO: devolver apenas as doações com status 'disponivel'.
+// Devolve apenas as doações com status 'disponivel'.
 export async function listarDisponiveis() {
-  throw new Error('não implementado: repositorio.listarDisponiveis');
+  const { rows } = await query(
+    "SELECT * FROM doacoes WHERE status = 'disponivel' ORDER BY id",
+  );
+  return rows;
 }
 
-// TODO: buscar uma doação pelo id (devolver undefined se não existir).
+// Devolve todas as doações, em qualquer status.
+export async function listarTodas() {
+  const { rows } = await query('SELECT * FROM doacoes ORDER BY id');
+  return rows;
+}
+
+// Busca uma doação pelo id (devolve undefined se não existir).
 export async function buscarPorId(id) {
-  throw new Error('não implementado: repositorio.buscarPorId');
+  const { rows } = await query('SELECT * FROM doacoes WHERE id = ?', [id]);
+  return rows[0];
 }
 
 // TODO: marcar a doação como aceita pela ONG e devolver a linha atualizada.
