@@ -9,7 +9,7 @@
     h1 { font-size: 1.3rem; }
     fieldset { border: 1px solid #ccc; border-radius: .5rem; margin-bottom: 1rem; }
     label { display: block; margin: .5rem 0 .2rem; font-size: .9rem; }
-    input, button { font-size: 1rem; padding: .6rem; width: 100%; box-sizing: border-box; }
+    input, select, button { font-size: 1rem; padding: .6rem; width: 100%; box-sizing: border-box; }
     button { margin-top: .8rem; cursor: pointer; }
     li { border: 1px solid #ddd; border-radius: .5rem; padding: .6rem; margin-bottom: .5rem; list-style: none; }
     ul { padding: 0; }
@@ -18,7 +18,13 @@
 <body>
   <h1>Prato Cheio</h1>
 
-  <fieldset>
+  <label for="modo">Modo</label>
+  <select id="modo">
+    <option value="doador">Doador</option>
+    <option value="ong">ONG</option>
+  </select>
+
+  <fieldset id="secaoPublicar">
     <legend>Publicar doação</legend>
     <label for="tipo">Tipo de alimento</label>
     <input id="tipo" placeholder="Ex.: sopa, pão, frutas">
@@ -29,10 +35,24 @@
     <button id="publicar">Publicar</button>
   </fieldset>
 
-  <h2>Doações disponíveis</h2>
-  <ul id="lista"></ul>
+  <fieldset id="secaoOng">
+    <legend>Aceitar doação</legend>
+    <label for="ong">Nome da ONG</label>
+    <input id="ong" value="Minha ONG">
+    <h2>Doações disponíveis</h2>
+    <ul id="lista"></ul>
+  </fieldset>
+
+  <h2>Acompanhar doações</h2>
+  <ul id="acompanhar"></ul>
 
   <script>
+    function atualizarModo() {
+      const modo = document.getElementById('modo').value;
+      document.getElementById('secaoPublicar').hidden = modo !== 'doador';
+      document.getElementById('secaoOng').hidden = modo !== 'ong';
+    }
+
     async function carregar() {
       const res = await fetch('/api/doacoes');
       const doacoes = await res.json();
@@ -49,14 +69,31 @@
           await fetch(`/api/doacoes/${d.id}/aceitar`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ong: 'Minha ONG' })
+            body: JSON.stringify({ ong: document.getElementById('ong').value })
           });
           carregar();
+          carregarTodas();
         };
         li.appendChild(botao);
         lista.appendChild(li);
       }
     }
+
+    async function carregarTodas() {
+      const res = await fetch('/api/doacoes/todas');
+      const doacoes = await res.json();
+      const acompanhar = document.getElementById('acompanhar');
+      acompanhar.innerHTML = doacoes.length
+        ? ''
+        : '<li>Nenhuma doação publicada.</li>';
+      for (const d of doacoes) {
+        const li = document.createElement('li');
+        li.textContent = `${d.tipo} — ${d.quantidade} (até ${d.validade}) — ${d.status}${d.ong ? ' — ' + d.ong : ''}`;
+        acompanhar.appendChild(li);
+      }
+    }
+
+    document.getElementById('modo').onchange = atualizarModo;
 
     document.getElementById('publicar').onclick = async () => {
       await fetch('/api/doacoes', {
@@ -69,9 +106,12 @@
         })
       });
       carregar();
+      carregarTodas();
     };
 
+    atualizarModo();
     carregar();
+    carregarTodas();
   </script>
 </body>
 </html>
