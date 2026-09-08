@@ -12,6 +12,7 @@ Conecta doadores de alimentos excedentes a ONGs, antes que a comida se perca.
 - João Vitor Paranhos — @joaoparanhoss
 - João Pedro Alves de Lima — @CapJao
 - Rafael Alexandre Alves Bandoch — @RafaelBandoch
+- Heitor Lopes Reis - @dev-heitorreis
 
 ## Como rodar
 
