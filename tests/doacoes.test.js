@@ -1,9 +1,15 @@
-import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll, afterEach, vi } from 'vitest';
 import request from 'supertest';
 import { criarApp } from '../src/app.js';
 import { migrar, limparBanco, encerrar } from '../src/db.js';
 
 const app = criarApp();
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-08-01T15:00:00Z'));
+});
+afterEach(() => vi.useRealTimers());
 
 // Este teste já passa e não depende do banco:
 // prova que a aplicação sobe e que o CI está funcionando.
@@ -40,6 +46,35 @@ describe('publicar e listar doações', () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
     expect(res.body[0].tipo).toBe('Sopa');
+  });
+
+  it('recusa data passada sem gravar no banco', async () => {
+    const res = await request(app).post('/api/doacoes')
+      .send({ tipo: 'Sopa', quantidade: '2 porções', validade: '2026-07-31' });
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toMatch(/hoje ou uma data futura/);
+    expect((await request(app).get('/api/doacoes/todas')).body).toEqual([]);
+  });
+
+  it.each(['2026-02-30', '2026-13-01', '01/08/2026', 'inválida', 123, {}])('recusa validade inválida: %j', async validade => {
+    const res = await request(app).post('/api/doacoes')
+      .send({ tipo: 'Sopa', quantidade: '2 porções', validade });
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toMatch(/data de validade válida/);
+  });
+
+  it('aceita hoje no fuso de São Paulo mesmo quando UTC já mudou de dia', async () => {
+    vi.setSystemTime(new Date('2026-08-02T01:00:00Z'));
+    const res = await request(app).post('/api/doacoes')
+      .send({ tipo: 'Sopa', quantidade: '2 porções', validade: '2026-08-01' });
+    expect(res.status).toBe(201);
+  });
+
+  it('recusa ontem após a meia-noite de São Paulo', async () => {
+    vi.setSystemTime(new Date('2026-08-02T03:00:00Z'));
+    const res = await request(app).post('/api/doacoes')
+      .send({ tipo: 'Sopa', quantidade: '2 porções', validade: '2026-08-01' });
+    expect(res.status).toBe(400);
   });
 
   it('recusa doação sem os campos obrigatórios', async () => {
