@@ -5,35 +5,108 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Prato Cheio</title>
   <style>
-    body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem; max-width: 40rem; }
-    h1 { font-size: 1.3rem; }
-    fieldset { border: 1px solid #ccc; border-radius: .5rem; margin-bottom: 1rem; }
-    label { display: block; margin: .5rem 0 .2rem; font-size: .9rem; }
-    input, select, button { font-size: 1rem; padding: .6rem; width: 100%; box-sizing: border-box; }
-    button { margin-top: .8rem; cursor: pointer; }
-    li { border: 1px solid #ddd; border-radius: .5rem; padding: .6rem; margin-bottom: .5rem; list-style: none; }
-    ul { padding: 0; }
+    :root { color-scheme: light; --green: #245c43; --ink: #243c32; --muted: #61756b; --line: #dce6df; --paper: #f3f7f4; }
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; background: var(--paper); color: var(--ink); line-height: 1.5; }
+    main { max-width: 760px; margin: 0 auto; padding: 40px 24px 64px; }
+    header { display: flex; align-items: center; gap: 16px; margin-bottom: 32px; }
+    .marca { width: 54px; height: 54px; flex-shrink: 0; border: 2px solid var(--green); border-radius: 50%; display: grid; place-items: center; }
+    .marca::before { content: ''; width: 32px; height: 32px; border: 1px solid var(--green); border-radius: 50%; box-shadow: inset 0 0 0 5px var(--paper); background: #d4e8da; }
+    h1 { font-family: 'Trebuchet MS', sans-serif; font-size: 1.8rem; letter-spacing: -.06rem; margin: 0; }
+    header p, .ajuda { color: var(--muted); font-size: .9rem; margin: 4px 0 0; }
+    .modo { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 24px; }
+    .modo label { margin: 0; font-weight: 600; }
+    .modo select { width: 180px; background: white; }
+    fieldset { min-width: 0; border: 1px solid var(--line); border-radius: 16px; background: white; padding: 24px; margin: 0 0 28px; }
+    legend { padding: 0 8px; font-size: 1.1rem; font-weight: 700; }
+    label { display: block; margin: 18px 0 6px; font-size: .875rem; font-weight: 600; }
+    input, select, button { font: inherit; padding: 12px 14px; width: 100%; border-radius: 8px; }
+    input, select { border: 1px solid #bccdc1; color: var(--ink); background: #fcfdfc; }
+    input::placeholder { color: var(--muted); }
+    button { margin-top: 18px; cursor: pointer; border: 1px solid var(--green); background: var(--green); color: white; font-weight: 600; }
+    button:hover { background: #194731; }
+    button:disabled { cursor: wait; opacity: .6; }
+    :focus-visible { outline: 3px solid #c18d26; outline-offset: 3px; }
+    h2 { font-size: 1.1rem; margin: 24px 0 12px; }
+    ul { padding: 0; margin: 12px 0 0; display: grid; gap: 12px; }
+    li { border: 1px solid var(--line); border-radius: 10px; padding: 16px; list-style: none; background: white; overflow-wrap: anywhere; }
+    li strong { display: block; font-size: 1rem; }
+    .detalhes { display: block; color: var(--muted); font-size: .875rem; margin-top: 4px; }
+    .status { display: inline-block; font-size: .75rem; font-weight: 600; padding: 3px 9px; border-radius: 20px; margin-top: 12px; background: #e6f2e9; color: var(--green); }
+    .status.aceita { background: #edf0f7; color: #465777; }
+    .vazio { background: transparent; border-style: dashed; color: var(--muted); text-align: center; padding: 24px 16px; font-size: .9rem; }
+    @media (max-width: 480px) {
+      main { padding: 24px 16px 48px; }
+      fieldset { padding: 18px; }
+      h1 { font-size: 1.55rem; }
+      .modo select { width: 150px; }
+    }
+    .linha-data { display: flex; gap: 8px; }
+    .linha-data input { min-width: 0; }
+    .secundario { width: auto; margin: 0; background: white; color: var(--green); border-color: var(--line); }
+    .secundario:hover { background: #e6f2e9; }
+    .cabecalho-lista { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    #estadoListas { min-height: 1.5em; margin-top: 8px; }
+    dialog { border: 1px solid var(--line); border-radius: 16px; padding: 20px; width: min(360px, calc(100vw - 32px)); color: var(--ink); box-shadow: 0 20px 60px #243c3233; }
+    dialog::backdrop { background: #243c3255; }
+    .calendario-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .calendario-topo h2 { margin: 0; font-size: 1rem; text-align: center; }
+    .semana, .dias { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .semana { margin: 16px 0 8px; text-align: center; font-size: .75rem; color: var(--muted); }
+    .dias button { margin: 0; padding: 9px 0; border: 1px solid transparent; background: white; color: var(--ink); }
+    .dias button:disabled { color: #8b9991; cursor: not-allowed; opacity: .5; background: transparent; }
+    .dias button:hover { background: #e6f2e9; }
+    .dias button[aria-current="date"] { border-color: var(--green); }
+    .dias button[aria-pressed="true"] { background: var(--green); color: white; }
+    .calendario-rodape { display: flex; justify-content: space-between; margin-top: 16px; }
+    .toasts { position: fixed; right: 1rem; top: 1rem; width: min(24rem, calc(100vw - 2rem)); display: grid; gap: .5rem; z-index: 1000; }
+    .toast { display: flex; align-items: center; gap: .8rem; padding: .9rem 1rem; border-radius: .5rem; background: #166534; color: white; box-shadow: 0 4px 16px #0003; overflow-wrap: anywhere; animation: toast-apagar 3s linear forwards; }
+    @keyframes toast-apagar {
+      0%, 66.666% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .toast { animation: none; }
+    }
+    .toast.erro { background: #991b1b; }
+    .toast span { flex: 1; min-width: 0; }
+    .toast button { width: auto; margin: 0; padding: .3rem .5rem; background: transparent; color: inherit; border: 1px solid currentColor; border-radius: .25rem; }
   </style>
 </head>
 <body>
-  <h1>Prato Cheio</h1>
+  <main>
+  <header>
+    <div class="marca" aria-hidden="true"></div>
+    <div><h1>Prato Cheio</h1><p>Alimentos compartilhados. Menos desperdício.</p></div>
+  </header>
 
-  <label for="modo">Modo</label>
+  <div class="modo">
+
+  <label for="modo">Como você participa?</label>
   <select id="modo">
     <option value="doador">Doador</option>
     <option value="ong">ONG</option>
   </select>
+  </div>
 
+  <form id="formPublicar">
   <fieldset id="secaoPublicar">
     <legend>Publicar doação</legend>
+    <p class="ajuda">Informe o alimento e o prazo para retirada.</p>
     <label for="tipo">Tipo de alimento</label>
-    <input id="tipo" placeholder="Ex.: sopa, pão, frutas">
+    <input id="tipo" required maxlength="120" placeholder="Ex.: sopa, pão, frutas">
     <label for="quantidade">Quantidade</label>
-    <input id="quantidade" placeholder="Ex.: 10 porções">
+    <input id="quantidade" required maxlength="120" placeholder="Ex.: 10 porções">
     <label for="validade">Validade / retirar até</label>
-    <input id="validade" type="date">
-    <button id="publicar">Publicar</button>
+    <div class="linha-data">
+      <input id="validade" type="text" placeholder="dd/mm/aaaa" inputmode="numeric" required pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" aria-describedby="ajudaData">
+      <button type="button" id="abrirCalendario" class="secundario" aria-haspopup="dialog" aria-controls="calendario">Calendário</button>
+    </div>
+    <p id="ajudaData" class="ajuda">Escolha hoje ou uma data futura.</p>
+    <button id="publicar">Publicar doação</button>
   </fieldset>
+
+  </form>
 
   <fieldset id="secaoOng">
     <legend>Aceitar doação</legend>
@@ -43,10 +116,115 @@
     <ul id="lista"></ul>
   </fieldset>
 
-  <h2>Acompanhar doações</h2>
+  <div class="cabecalho-lista"><h2>Acompanhar doações</h2>
+    <button id="atualizar" type="button" class="secundario">Atualizar</button>
+  </div>
+  <p id="estadoListas" class="ajuda" role="status"></p>
+  <p class="ajuda">Veja o que está disponível e o que já encontrou uma ONG.</p>
   <ul id="acompanhar"></ul>
+  </main>
+
+  <dialog id="calendario" aria-labelledby="mesCalendario">
+    <div class="calendario-topo">
+      <button type="button" id="mesAnterior" class="secundario" aria-label="Mês anterior">‹</button>
+      <h2 id="mesCalendario" aria-live="polite"></h2>
+      <button type="button" id="mesSeguinte" class="secundario" aria-label="Próximo mês">›</button>
+    </div>
+    <div class="semana" aria-hidden="true"><span>D</span><span>S</span><span>T</span><span>Q</span><span>Q</span><span>S</span><span>S</span></div>
+    <div id="diasCalendario" class="dias" aria-label="Dias do mês"></div>
+    <div class="calendario-rodape">
+      <button type="button" id="dataHoje" class="secundario">Hoje</button>
+      <button type="button" id="fecharCalendario" class="secundario">Fechar</button>
+    </div>
+  </dialog>
+
+  <div id="toasts" class="toasts" aria-label="Notificações"></div>
 
   <script>
+    function mostrarToast(mensagem, tipo = 'sucesso') {
+      const toast = document.createElement('div');
+      toast.className = `toast ${tipo}`;
+      toast.setAttribute('role', tipo === 'erro' ? 'alert' : 'status');
+      const texto = document.createElement('span');
+      texto.textContent = mensagem;
+      const fechar = document.createElement('button');
+      fechar.type = 'button';
+      fechar.textContent = '×';
+      fechar.setAttribute('aria-label', 'Fechar notificação');
+      const remover = () => { clearTimeout(timer); toast.remove(); };
+      fechar.onclick = remover;
+      toast.append(texto, fechar);
+      document.getElementById('toasts').appendChild(toast);
+      const timer = setTimeout(remover, 3000);
+    }
+
+    async function requisitar(url, opcoes) {
+      let res;
+      try {
+        res = await fetch(url, opcoes);
+      } catch {
+        throw new Error('Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.');
+      }
+      const dados = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(dados?.erro || 'Não foi possível concluir a solicitação. Tente novamente.');
+      if (dados === null) throw new Error('O servidor retornou uma resposta inválida. Atualize a página.');
+      return dados;
+    }
+
+    let atualizacaoEmCurso;
+    function atualizarListas() {
+      if (atualizacaoEmCurso) return atualizacaoEmCurso;
+      const botao = document.getElementById('atualizar');
+      const estado = document.getElementById('estadoListas');
+      botao.disabled = true;
+      estado.textContent = 'Atualizando doações…';
+      for (const id of ['lista', 'acompanhar']) document.getElementById(id).setAttribute('aria-busy', 'true');
+      atualizacaoEmCurso = Promise.allSettled([carregar(), carregarTodas()]).then(resultados => {
+        const falhou = resultados.some(resultado => resultado.status === 'rejected');
+        estado.textContent = falhou ? 'Não foi possível atualizar todas as listas. Tente novamente.' : 'Doações atualizadas.';
+        botao.textContent = falhou ? 'Tentar novamente' : 'Atualizar';
+      }).finally(() => {
+        botao.disabled = false;
+        for (const id of ['lista', 'acompanhar']) document.getElementById(id).setAttribute('aria-busy', 'false');
+        atualizacaoEmCurso = null;
+      });
+      return atualizacaoEmCurso;
+    }
+
+    async function realizarAcao(botao, url, dados, mensagem, aoConcluir) {
+      if (botao.disabled) return;
+      const rotulo = botao.textContent;
+      botao.disabled = true;
+      botao.textContent = 'Aguarde…';
+      try {
+        await requisitar(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(dados)
+        });
+        mostrarToast(mensagem);
+        aoConcluir?.();
+        if (atualizacaoEmCurso) await atualizacaoEmCurso;
+        await atualizarListas();
+      } catch (erro) {
+        mostrarToast(erro.message, 'erro');
+      } finally {
+        botao.disabled = false;
+        botao.textContent = rotulo;
+      }
+    }
+
+    function preencherDoacao(li, doacao) {
+      const titulo = document.createElement('strong');
+      titulo.textContent = doacao.tipo;
+      const detalhes = document.createElement('span');
+      detalhes.className = 'detalhes';
+      const validade = /^\d{4}-\d{2}-\d{2}$/.test(doacao.validade)
+        ? doacao.validade.split('-').reverse().join('/') : doacao.validade;
+      detalhes.textContent = `${doacao.quantidade} · Retirar até ${validade}`;
+      li.append(titulo, detalhes);
+    }
+
     function atualizarModo() {
       const modo = document.getElementById('modo').value;
       document.getElementById('secaoPublicar').hidden = modo !== 'doador';
@@ -54,64 +232,139 @@
     }
 
     async function carregar() {
-      const res = await fetch('/api/doacoes');
-      const doacoes = await res.json();
+      const doacoes = await requisitar('/api/doacoes');
       const lista = document.getElementById('lista');
       lista.innerHTML = doacoes.length
         ? ''
-        : '<li>Nenhuma doação disponível.</li>';
+        : '<li class="vazio">Nenhuma doação disponível no momento.</li>';
       for (const d of doacoes) {
         const li = document.createElement('li');
-        li.textContent = `${d.tipo} — ${d.quantidade} (até ${d.validade}) `;
+        preencherDoacao(li, d);
         const botao = document.createElement('button');
         botao.textContent = 'Aceitar';
-        botao.onclick = async () => {
-          await fetch(`/api/doacoes/${d.id}/aceitar`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ong: document.getElementById('ong').value })
-          });
-          carregar();
-          carregarTodas();
-        };
+        botao.onclick = () => realizarAcao(
+          botao,
+          `/api/doacoes/${d.id}/aceitar`,
+          { ong: document.getElementById('ong').value },
+          'Doação aceita com sucesso!'
+        );
         li.appendChild(botao);
         lista.appendChild(li);
       }
     }
 
     async function carregarTodas() {
-      const res = await fetch('/api/doacoes/todas');
-      const doacoes = await res.json();
+      const doacoes = await requisitar('/api/doacoes/todas');
       const acompanhar = document.getElementById('acompanhar');
       acompanhar.innerHTML = doacoes.length
         ? ''
-        : '<li>Nenhuma doação publicada.</li>';
+        : '<li class="vazio">As doações publicadas aparecerão aqui.</li>';
       for (const d of doacoes) {
         const li = document.createElement('li');
-        li.textContent = `${d.tipo} — ${d.quantidade} (até ${d.validade}) — ${d.status}${d.ong ? ' — ' + d.ong : ''}`;
+        preencherDoacao(li, d);
+        const status = document.createElement('span');
+        status.className = d.status === 'aceita' ? 'status aceita' : 'status';
+        status.textContent = d.status === 'aceita' ? `Aceita${d.ong ? ' por ' + d.ong : ''}` : 'Disponível';
+        li.appendChild(status);
         acompanhar.appendChild(li);
       }
     }
 
     document.getElementById('modo').onchange = atualizarModo;
 
-    document.getElementById('publicar').onclick = async () => {
-      await fetch('/api/doacoes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tipo: document.getElementById('tipo').value,
-          quantidade: document.getElementById('quantidade').value,
-          validade: document.getElementById('validade').value
-        })
-      });
-      carregar();
-      carregarTodas();
+    const formulario = document.getElementById('formPublicar');
+    const campoData = document.getElementById('validade');
+    const calendario = document.getElementById('calendario');
+    let mesVisivel = new Date();
+    function lerData(valor) {
+      const partes = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(valor);
+      if (!partes) return null;
+      const [, dia, mes, ano] = partes.map(Number);
+      const data = new Date(ano, mes - 1, dia);
+      return data.getFullYear() === ano && data.getMonth() === mes - 1 && data.getDate() === dia ? data : null;
+    }
+    function hojeLocal() {
+      const partes = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit'
+      }).formatToParts(new Date());
+      const parte = tipo => Number(partes.find(p => p.type === tipo).value);
+      return new Date(parte('year'), parte('month') - 1, parte('day'));
+    }
+    function escolherData(data) {
+      if (data < hojeLocal()) return;
+      campoData.value = data.toLocaleDateString('pt-BR');
+      campoData.setCustomValidity('');
+      calendario.close();
+      campoData.focus();
+    }
+    function desenharCalendario() {
+      document.getElementById('mesCalendario').textContent = mesVisivel.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+      const dias = document.getElementById('diasCalendario');
+      dias.replaceChildren();
+      const ano = mesVisivel.getFullYear(), mes = mesVisivel.getMonth();
+      const selecionada = lerData(campoData.value);
+      for (let i = 0; i < new Date(ano, mes, 1).getDay(); i++) dias.appendChild(document.createElement('span'));
+      for (let dia = 1; dia <= new Date(ano, mes + 1, 0).getDate(); dia++) {
+        const data = new Date(ano, mes, dia);
+        const botao = document.createElement('button');
+        botao.type = 'button';
+        botao.disabled = data < hojeLocal();
+        botao.textContent = dia;
+        botao.setAttribute('aria-label', data.toLocaleDateString('pt-BR', { dateStyle: 'full' }));
+        botao.setAttribute('aria-pressed', String(data.toDateString() === selecionada?.toDateString()));
+        if (data.toDateString() === hojeLocal().toDateString()) botao.setAttribute('aria-current', 'date');
+        botao.onclick = () => escolherData(data);
+        botao.onkeydown = evento => {
+          const deslocamento = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[evento.key];
+          if (!deslocamento) return;
+          evento.preventDefault();
+          const destino = new Date(ano, mes, dia + deslocamento);
+          if (destino < hojeLocal()) return;
+          mesVisivel = new Date(destino.getFullYear(), destino.getMonth(), 1);
+          desenharCalendario();
+          document.querySelectorAll('#diasCalendario button')[destino.getDate() - 1].focus();
+        };
+        dias.appendChild(botao);
+      }
+    }
+    document.getElementById('abrirCalendario').onclick = () => {
+      const selecionada = lerData(campoData.value);
+      const data = selecionada && selecionada >= hojeLocal() ? selecionada : hojeLocal();
+      mesVisivel = new Date(data.getFullYear(), data.getMonth(), 1);
+      desenharCalendario();
+      calendario.showModal();
+      document.querySelectorAll('#diasCalendario button')[data.getDate() - 1].focus();
+    };
+    document.getElementById('mesAnterior').onclick = () => { mesVisivel.setMonth(mesVisivel.getMonth() - 1); desenharCalendario(); };
+    document.getElementById('mesSeguinte').onclick = () => { mesVisivel.setMonth(mesVisivel.getMonth() + 1); desenharCalendario(); };
+    document.getElementById('dataHoje').onclick = () => escolherData(hojeLocal());
+    document.getElementById('fecharCalendario').onclick = () => calendario.close();
+    campoData.oninput = () => campoData.setCustomValidity('');
+    document.getElementById('atualizar').onclick = atualizarListas;
+    formulario.onsubmit = async evento => {
+      evento.preventDefault();
+      const data = lerData(campoData.value);
+      campoData.setCustomValidity(!data ? 'Informe uma data válida no formato dd/mm/aaaa.' : data < hojeLocal() ? 'A validade deve ser hoje ou uma data futura.' : '');
+      if (!formulario.reportValidity()) return;
+      const campos = ['tipo', 'quantidade'].map(id => document.getElementById(id));
+      for (const campo of campos) {
+        if (!campo.value.trim()) { mostrarToast('Preencha o tipo e a quantidade do alimento.', 'erro'); campo.focus(); return; }
+      }
+      // Bloqueia os campos durante o envio para preservar o conteúdo em caso de erro.
+      const entradas = [...formulario.querySelectorAll('input, button:not(#publicar)')];
+      entradas.forEach(campo => campo.disabled = true);
+      try {
+        await realizarAcao(document.getElementById('publicar'), '/api/doacoes', {
+          tipo: campos[0].value.trim(), quantidade: campos[1].value.trim(),
+          validade: `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}-${String(data.getDate()).padStart(2, '0')}`
+        }, 'Doação publicada com sucesso!', () => formulario.reset());
+      } finally {
+        entradas.forEach(campo => campo.disabled = false);
+      }
     };
 
     atualizarModo();
-    carregar();
-    carregarTodas();
+    atualizarListas();
   </script>
 </body>
 </html>

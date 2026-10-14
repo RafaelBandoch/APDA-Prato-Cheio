@@ -7,6 +7,19 @@ export async function criarDoacao({ tipo, quantidade, validade }) {
   if (!tipo || !quantidade || !validade) {
     throw new Error('tipo, quantidade e validade são obrigatórios');
   }
+  const data = typeof validade === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(validade)
+    ? new Date(`${validade}T00:00:00Z`) : new Date(NaN);
+  if (!Number.isFinite(data.getTime()) || data.toISOString().slice(0, 10) !== validade) {
+    throw new Error('Informe uma data de validade válida no formato AAAA-MM-DD');
+  }
+  const partes = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date());
+  const parte = tipo => partes.find(p => p.type === tipo).value;
+  const hoje = `${parte('year')}-${parte('month')}-${parte('day')}`;
+  if (validade < hoje) {
+    throw new Error('A validade deve ser hoje ou uma data futura');
+  }
   return repo.inserir({ tipo, quantidade, validade });
 }
 
