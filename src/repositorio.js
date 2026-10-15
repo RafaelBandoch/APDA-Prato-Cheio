@@ -7,10 +7,10 @@
 import { query } from './db.js';
 
 // TODO: inserir a doação e devolver a linha criada (dica: INSERT ... RETURNING *).
-export async function inserir({ tipo, quantidade, validade }) {
+export async function inserir({ tipo, quantidade, validade, janela_inicio = null, janela_fim = null }) {
   const { rows } = await query(
-    'INSERT INTO doacoes (tipo, quantidade, validade) VALUES (?, ?, ?) RETURNING *',
-    [tipo, quantidade, validade],
+    'INSERT INTO doacoes (tipo, quantidade, validade, janela_inicio, janela_fim) VALUES (?, ?, ?, ?, ?) RETURNING *',
+    [tipo, quantidade, validade, janela_inicio, janela_fim],
   );
   return rows[0];
 }
@@ -43,4 +43,21 @@ export async function aceitar(id, ong) {
     [ong, id],
   );
   return rows[0];
+}
+
+/**
+ * Regra 1 (analise.md): expira doações 'disponivel' cuja validade
+ * está a menos de `margemHoras` horas do momento atual.
+ * Devolve o número de linhas alteradas.
+ */
+export async function expirarVencidas(margemHoras = 2) {
+  // Calcula a data-limite: hoje + margemHoras horas, no formato 'YYYY-MM-DD'
+  const limite = new Date(Date.now() + margemHoras * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+  const { alteradas } = await query(
+    "UPDATE doacoes SET status = 'expirada' WHERE status = 'disponivel' AND validade <= ? RETURNING *",
+    [limite],
+  );
+  return alteradas ?? 0;
 }

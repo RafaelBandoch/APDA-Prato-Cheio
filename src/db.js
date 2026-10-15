@@ -35,15 +35,27 @@ export async function query(sql, valores = []) {
 export async function migrar() {
   conexao().exec(`
     CREATE TABLE IF NOT EXISTS doacoes (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      tipo        TEXT NOT NULL,
-      quantidade  TEXT NOT NULL,
-      validade    TEXT NOT NULL,
-      status      TEXT NOT NULL DEFAULT 'disponivel',
-      ong         TEXT,
-      criada_em   TEXT NOT NULL DEFAULT (datetime('now'))
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      tipo          TEXT NOT NULL,
+      quantidade    TEXT NOT NULL,
+      validade      TEXT NOT NULL,
+      status        TEXT NOT NULL DEFAULT 'disponivel',
+      ong           TEXT,
+      janela_inicio TEXT,
+      janela_fim    TEXT,
+      criada_em     TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `);
+
+  // Adiciona colunas novas em bancos já criados sem as colunas de janela.
+  // SQLite não tem ADD COLUMN IF NOT EXISTS, então usamos try/catch.
+  for (const col of ['janela_inicio', 'janela_fim']) {
+    try {
+      conexao().exec(`ALTER TABLE doacoes ADD COLUMN ${col} TEXT`);
+    } catch {
+      // Coluna já existe — ignorar
+    }
+  }
 }
 
 /** Apaga todos os dados. Usado pelos testes. */
