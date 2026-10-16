@@ -44,6 +44,13 @@ export async function migrar() {
       criada_em   TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `);
+  const colunas = conexao().prepare('PRAGMA table_info(doacoes)').all().map(coluna => coluna.name);
+  if (!colunas.includes('janela_inicio')) {
+    conexao().exec('ALTER TABLE doacoes ADD COLUMN janela_inicio TEXT');
+  }
+  if (!colunas.includes('janela_fim')) {
+    conexao().exec('ALTER TABLE doacoes ADD COLUMN janela_fim TEXT');
+  }
 }
 
 /** Apaga todos os dados. Usado pelos testes. */

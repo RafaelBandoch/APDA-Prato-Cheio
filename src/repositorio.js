@@ -7,10 +7,10 @@
 import { query } from './db.js';
 
 // TODO: inserir a doação e devolver a linha criada (dica: INSERT ... RETURNING *).
-export async function inserir({ tipo, quantidade, validade }) {
+export async function inserir({ tipo, quantidade, validade, janela_inicio = null, janela_fim = null }) {
   const { rows } = await query(
-    'INSERT INTO doacoes (tipo, quantidade, validade) VALUES (?, ?, ?) RETURNING *',
-    [tipo, quantidade, validade],
+    'INSERT INTO doacoes (tipo, quantidade, validade, janela_inicio, janela_fim) VALUES (?, ?, ?, ?, ?) RETURNING *',
+    [tipo, quantidade, validade, janela_inicio, janela_fim],
   );
   return rows[0];
 }
@@ -33,6 +33,34 @@ export async function listarTodas() {
 export async function buscarPorId(id) {
   const { rows } = await query('SELECT * FROM doacoes WHERE id = ?', [id]);
   return rows[0];
+}
+
+export async function expirarVencidas() {
+  const partes = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date());
+  const parte = tipo => partes.find(item => item.type === tipo).value;
+  let vencidasAte = `${parte('year')}-${parte('month')}-${parte('day')}`;
+
+  if (Number(parte('hour')) < 22) {
+    const ontem = new Date(Date.UTC(
+      Number(parte('year')),
+      Number(parte('month')) - 1,
+      Number(parte('day')) - 1,
+    ));
+    vencidasAte = ontem.toISOString().slice(0, 10);
+  }
+
+  const { rows } = await query(
+    "UPDATE doacoes SET status = 'expirada' WHERE status = 'disponivel' AND validade <= ? RETURNING *",
+    [vencidasAte],
+  );
+  return rows;
 }
 
 // TODO: marcar a doação como aceita pela ONG e devolver a linha atualizada.
