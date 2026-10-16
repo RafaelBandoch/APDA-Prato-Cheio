@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterAll, afterEach, vi } from 'vites
 import request from 'supertest';
 import { criarApp } from '../src/app.js';
 import { migrar, limparBanco, encerrar } from '../src/db.js';
+import * as repositorio from '../src/repositorio.js';
 
 const app = criarApp();
 
@@ -326,5 +327,30 @@ describe('aceitar uma doação', () => {
     expect(res.body).toHaveLength(1);
     expect(res.body[0].id).toBe(segunda.id);
     expect(res.body[0].status).toBe('disponivel');
+  });
+});
+
+describe('expirar doações vencidas', () => {
+  beforeEach(async () => {
+    await migrar();
+    await limparBanco();
+  });
+
+  afterAll(async () => {
+    await encerrar();
+  });
+
+  it('marca como expirada uma doação disponível com validade passada', async () => {
+    const doacao = await repositorio.inserir({
+      tipo: 'Arroz',
+      quantidade: '5kg',
+      validade: '2020-01-01',
+    });
+
+    const expiradas = await repositorio.expirarVencidas();
+    const atualizada = await repositorio.buscarPorId(doacao.id);
+
+    expect(expiradas).toBe(1);
+    expect(atualizada.status).toBe('expirada');
   });
 });
