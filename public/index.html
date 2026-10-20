@@ -34,6 +34,7 @@
     .detalhes { display: block; color: var(--muted); font-size: .875rem; margin-top: 4px; }
     .status { display: inline-block; font-size: .75rem; font-weight: 600; padding: 3px 9px; border-radius: 20px; margin-top: 12px; background: #e6f2e9; color: var(--green); }
     .status.aceita { background: #edf0f7; color: #465777; }
+    .status.expirada { background: #fee2e2; color: #991b1b; }
     .vazio { background: transparent; border-style: dashed; color: var(--muted); text-align: center; padding: 24px 16px; font-size: .9rem; }
     @media (max-width: 480px) {
       main { padding: 24px 16px 48px; }
@@ -120,7 +121,7 @@
     <button id="atualizar" type="button" class="secundario">Atualizar</button>
   </div>
   <p id="estadoListas" class="ajuda" role="status"></p>
-  <p class="ajuda">Veja o que está disponível e o que já encontrou uma ONG.</p>
+  <p class="ajuda">Veja as doações disponíveis, aceitas e expiradas.</p>
   <ul id="acompanhar"></ul>
   </main>
 
@@ -141,6 +142,30 @@
   <div id="toasts" class="toasts" aria-label="Notificações"></div>
 
   <script>
+    let doacoesDoDoador = {};
+    try {
+      const salvas = JSON.parse(localStorage.getItem('prato-cheio:doacoes-do-doador'));
+      if (salvas && typeof salvas === 'object' && !Array.isArray(salvas)) doacoesDoDoador = salvas;
+    } catch {}
+
+    function salvarDoacoesDoDoador() {
+      try {
+        localStorage.setItem('prato-cheio:doacoes-do-doador', JSON.stringify(doacoesDoDoador));
+      } catch {}
+    }
+
+    function avisarExpiradas(doacoes) {
+      if (document.getElementById('modo').value !== 'doador') return;
+      let notificou = false;
+      for (const doacao of doacoes) {
+        if (doacao.status !== 'expirada' || doacoesDoDoador[doacao.id] !== false) continue;
+        mostrarToast(`Sua doação de ${doacao.tipo} expirou e saiu da lista de disponíveis.`, 'erro');
+        doacoesDoDoador[doacao.id] = true;
+        notificou = true;
+      }
+      if (notificou) salvarDoacoesDoDoador();
+    }
+
     function mostrarToast(mensagem, tipo = 'sucesso') {
       const toast = document.createElement('div');
       toast.className = `toast ${tipo}`;
@@ -197,13 +222,13 @@
       botao.disabled = true;
       botao.textContent = 'Aguarde…';
       try {
-        await requisitar(url, {
+        const resultado = await requisitar(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(dados)
         });
         mostrarToast(mensagem);
-        aoConcluir?.();
+        aoConcluir?.(resultado);
         if (atualizacaoEmCurso) await atualizacaoEmCurso;
         await atualizarListas();
       } catch (erro) {
@@ -263,14 +288,26 @@
         const li = document.createElement('li');
         preencherDoacao(li, d);
         const status = document.createElement('span');
-        status.className = d.status === 'aceita' ? 'status aceita' : 'status';
-        status.textContent = d.status === 'aceita' ? `Aceita${d.ong ? ' por ' + d.ong : ''}` : 'Disponível';
+        status.className = 'status';
+        if (d.status === 'aceita') {
+          status.classList.add('aceita');
+          status.textContent = `Aceita${d.ong ? ' por ' + d.ong : ''}`;
+        } else if (d.status === 'expirada') {
+          status.classList.add('expirada');
+          status.textContent = 'Expirada';
+        } else {
+          status.textContent = 'Disponível';
+        }
         li.appendChild(status);
         acompanhar.appendChild(li);
       }
+      avisarExpiradas(doacoes);
     }
 
-    document.getElementById('modo').onchange = atualizarModo;
+    document.getElementById('modo').onchange = () => {
+      atualizarModo();
+      atualizarListas();
+    };
 
     const formulario = document.getElementById('formPublicar');
     const campoData = document.getElementById('validade');
@@ -357,7 +394,11 @@
         await realizarAcao(document.getElementById('publicar'), '/api/doacoes', {
           tipo: campos[0].value.trim(), quantidade: campos[1].value.trim(),
           validade: `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}-${String(data.getDate()).padStart(2, '0')}`
-        }, 'Doação publicada com sucesso!', () => formulario.reset());
+        }, 'Doação publicada com sucesso!', doacao => {
+          doacoesDoDoador[doacao.id] = false;
+          salvarDoacoesDoDoador();
+          formulario.reset();
+        });
       } finally {
         entradas.forEach(campo => campo.disabled = false);
       }
@@ -365,6 +406,9 @@
 
     atualizarModo();
     atualizarListas();
+    setInterval(() => {
+      if (!document.hidden) atualizarListas();
+    }, 30000);
   </script>
 </body>
 </html>

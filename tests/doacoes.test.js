@@ -350,7 +350,49 @@ describe('expirar doações vencidas', () => {
     const expiradas = await repositorio.expirarVencidas();
     const atualizada = await repositorio.buscarPorId(doacao.id);
 
-    expect(expiradas).toBe(1);
+    expect(expiradas).toHaveLength(1);
+    expect(expiradas[0].id).toBe(doacao.id);
     expect(atualizada.status).toBe('expirada');
+  });
+
+  it('expira ao atualizar as listas a partir das 22h de São Paulo', async () => {
+    const criada = await request(app).post('/api/doacoes')
+      .send({ tipo: 'Sopa', quantidade: '5L', validade: '2026-08-01' });
+    expect(criada.status).toBe(201);
+
+    vi.setSystemTime(new Date('2026-08-02T00:59:59Z'));
+    const antes = await request(app).get('/api/doacoes');
+    expect(antes.status).toBe(200);
+    expect(antes.body.map(doacao => doacao.id)).toContain(criada.body.id);
+
+    vi.setSystemTime(new Date('2026-08-02T01:00:00Z'));
+    const acompanhamento = await request(app).get('/api/doacoes/todas');
+    expect(acompanhamento.status).toBe(200);
+    expect(acompanhamento.body.find(doacao => doacao.id === criada.body.id).status).toBe('expirada');
+    const disponiveis = await request(app).get('/api/doacoes');
+    expect(disponiveis.status).toBe(200);
+    expect(disponiveis.body).toHaveLength(0);
+  });
+
+  it('a lista de disponíveis expira vencidas e preserva aceitas e futuras', async () => {
+    const publicar = async validade => {
+      const res = await request(app).post('/api/doacoes')
+        .send({ tipo: 'Sopa', quantidade: '5L', validade });
+      expect(res.status).toBe(201);
+      return res.body;
+    };
+    const vencida = await publicar('2026-08-01');
+    const futura = await publicar('2026-08-02');
+    const aceita = await publicar('2026-08-01');
+    const aceite = await request(app).post(`/api/doacoes/${aceita.id}/aceitar`).send({ ong: 'ONG A' });
+    expect(aceite.status).toBe(200);
+
+    vi.setSystemTime(new Date('2026-08-02T01:00:00Z'));
+    const lista = await request(app).get('/api/doacoes');
+    expect(lista.status).toBe(200);
+    expect(lista.body.map(doacao => doacao.id)).toEqual([futura.id]);
+    expect((await repositorio.buscarPorId(vencida.id)).status).toBe('expirada');
+    expect((await repositorio.buscarPorId(aceita.id)).status).toBe('aceita');
+    expect(await repositorio.expirarVencidas()).toEqual([]);
   });
 });

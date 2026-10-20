@@ -20,6 +20,7 @@ export async function inserir({ tipo, quantidade, validade, janela_inicio = null
  * Não inclui doações expiradas (status = 'expirada').
  */
 export async function listarDisponiveis() {
+  await expirarVencidas();
   const { rows } = await query(
     "SELECT * FROM doacoes WHERE status = 'disponivel' ORDER BY id",
   );
@@ -28,12 +29,14 @@ export async function listarDisponiveis() {
 
 // Devolve todas as doações, em qualquer status.
 export async function listarTodas() {
+  await expirarVencidas();
   const { rows } = await query('SELECT * FROM doacoes ORDER BY id');
   return rows;
 }
 
 // Busca uma doação pelo id (devolve undefined se não existir).
 export async function buscarPorId(id) {
+  if (!/^[1-9]\d*$/.test(String(id))) return undefined;
   const { rows } = await query('SELECT * FROM doacoes WHERE id = $1', [id]);
   return rows[0];
 }
@@ -51,18 +54,33 @@ export async function aceitar(id, ong) {
 }
 
 /**
- * Regra 1 (analise.md): expira doações 'disponivel' cuja validade
- * está a menos de `margemHoras` horas do momento atual.
- * Devolve o número de linhas alteradas.
+ * Regra 1 (analise.md): expira doações disponíveis às 22h de São Paulo
+ * no dia da validade. Devolve as linhas expiradas.
  */
-export async function expirarVencidas(margemHoras = 2) {
-  // Calcula a data-limite: agora + margemHoras horas, no formato 'YYYY-MM-DD'
-  const limite = new Date(Date.now() + margemHoras * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10);
-  const { alteradas } = await query(
+export async function expirarVencidas() {
+  const partes = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date());
+  const parte = tipo => partes.find(item => item.type === tipo).value;
+  let vencidasAte = `${parte('year')}-${parte('month')}-${parte('day')}`;
+
+  if (Number(parte('hour')) < 22) {
+    const ontem = new Date(Date.UTC(
+      Number(parte('year')),
+      Number(parte('month')) - 1,
+      Number(parte('day')) - 1,
+    ));
+    vencidasAte = ontem.toISOString().slice(0, 10);
+  }
+
+  const { rows } = await query(
     "UPDATE doacoes SET status = 'expirada' WHERE status = 'disponivel' AND validade <= $1 RETURNING *",
-    [limite],
+    [vencidasAte],
   );
-  return alteradas ?? 0;
+  return rows;
 }
