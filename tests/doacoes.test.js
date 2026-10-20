@@ -3,6 +3,7 @@ import request from 'supertest';
 import { criarApp } from '../src/app.js';
 import { migrar, limparBanco, encerrar } from '../src/db.js';
 import * as repositorio from '../src/repositorio.js';
+import { buscarPorId, expirarVencidas } from '../src/doacoes.js';
 
 const app = criarApp();
 
@@ -101,6 +102,22 @@ describe('publicar e listar doações', () => {
     expect(res.body.ong).toBeNull();
   });
 
+  it('persiste a janela de coleta informada pelo doador', async () => {
+    const res = await request(app)
+      .post('/api/doacoes')
+      .send({
+        tipo: 'Arroz',
+        quantidade: '5 kg',
+        validade: '2026-09-10',
+        janela_inicio: '2026-08-01T14:00:00.000Z',
+        janela_fim: '2026-08-01T16:00:00.000Z',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.janela_inicio).toBe('2026-08-01T14:00:00.000Z');
+    expect(res.body.janela_fim).toBe('2026-08-01T16:00:00.000Z');
+  });
+
   it('recusa doação sem o tipo', async () => {
     const res = await request(app)
       .post('/api/doacoes')
@@ -183,6 +200,34 @@ describe('publicar e listar doações', () => {
     expect(res.body[0].tipo).toBe('Sopa');
     expect(res.body[1].tipo).toBe('Feijão');
   });
+
+  it('expira disponíveis às 22h de São Paulo e preserva aceitas e futuras', async () => {
+    vi.setSystemTime(new Date('2026-07-31T15:00:00Z'));
+    const publicar = async validade => {
+      const res = await request(app)
+        .post('/api/doacoes')
+        .send({ tipo: 'Sopa', quantidade: '2 porções', validade });
+      return res.body;
+    };
+
+    const vencida = await publicar('2026-08-01');
+    const futura = await publicar('2026-08-02');
+    const aceita = await publicar('2026-08-01');
+    await request(app)
+      .post(`/api/doacoes/${aceita.id}/aceitar`)
+      .send({ ong: 'ONG Esperança' });
+
+    vi.setSystemTime(new Date('2026-08-02T00:59:59Z'));
+    expect(await expirarVencidas()).toEqual([]);
+
+    vi.setSystemTime(new Date('2026-08-02T01:00:00Z'));
+    const expiradas = await expirarVencidas();
+
+    expect(expiradas.map(doacao => doacao.id)).toEqual([vencida.id]);
+    expect((await buscarPorId(vencida.id)).status).toBe('expirada');
+    expect((await buscarPorId(futura.id)).status).toBe('disponivel');
+    expect((await buscarPorId(aceita.id)).status).toBe('aceita');
+  });
 });
 
 describe('aceitar uma doação', () => {
@@ -212,6 +257,44 @@ describe('aceitar uma doação', () => {
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('aceita');
     expect(res.body.ong).toBe('ONG Esperança');
+  });
+
+  it('recusa aceitar antes do início da janela de coleta', async () => {
+    const resCriacao = await request(app)
+      .post('/api/doacoes')
+      .send({
+        tipo: 'Pão',
+        quantidade: '20 unidades',
+        validade: '2026-08-02',
+        janela_inicio: '2026-08-01T16:00:00.000Z',
+        janela_fim: '2026-08-01T17:00:00.000Z',
+      });
+
+    const resAceite = await request(app)
+      .post(`/api/doacoes/${resCriacao.body.id}/aceitar`)
+      .send({ ong: 'ONG Esperança' });
+
+    expect(resAceite.status).toBe(400);
+    expect(resAceite.body.erro).toMatch(/fora da janela de coleta/);
+  });
+
+  it('aceita dentro da janela de coleta', async () => {
+    const resCriacao = await request(app)
+      .post('/api/doacoes')
+      .send({
+        tipo: 'Pão',
+        quantidade: '20 unidades',
+        validade: '2026-08-02',
+        janela_inicio: '2026-08-01T14:00:00.000Z',
+        janela_fim: '2026-08-01T16:00:00.000Z',
+      });
+
+    const resAceite = await request(app)
+      .post(`/api/doacoes/${resCriacao.body.id}/aceitar`)
+      .send({ ong: 'ONG Esperança' });
+
+    expect(resAceite.status).toBe(200);
+    expect(resAceite.body.status).toBe('aceita');
   });
 
   it('remove a doação da lista de disponíveis depois de aceita', async () => {

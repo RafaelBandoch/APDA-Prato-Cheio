@@ -3,7 +3,7 @@ import * as repo from './repositorio.js';
 
 // História zero — "um doador publica uma doação".
 // Critério: tipo, quantidade e validade são obrigatórios.
-export async function criarDoacao({ tipo, quantidade, validade }) {
+export async function criarDoacao({ tipo, quantidade, validade, janela_inicio = null, janela_fim = null }) {
   if (!tipo || !quantidade || !validade) {
     throw new Error('tipo, quantidade e validade são obrigatórios');
   }
@@ -20,7 +20,7 @@ export async function criarDoacao({ tipo, quantidade, validade }) {
   if (validade < hoje) {
     throw new Error('A validade deve ser hoje ou uma data futura');
   }
-  return repo.inserir({ tipo, quantidade, validade });
+  return repo.inserir({ tipo, quantidade, validade, janela_inicio, janela_fim });
 }
 
 // História zero — "uma ONG vê as doações disponíveis".
@@ -47,10 +47,25 @@ export async function aceitar(id, ong) {
   if (existente.status !== 'disponivel') {
     throw new Error('doação já foi aceita por outra ONG');
   }
+  if (existente.janela_fim) {
+    const agora = new Date().toISOString();
+    const inicio = existente.janela_inicio ?? '1970-01-01T00:00:00Z';
+    if (agora < inicio || agora > existente.janela_fim) {
+      throw new Error('aceite fora da janela de coleta definida pelo doador');
+    }
+  }
 
   const atualizada = await repo.aceitar(id, ong);
   if (!atualizada) {
     throw new Error('doação já foi aceita por outra ONG');
   }
   return atualizada;
+}
+
+export async function expirarVencidas() {
+  return repo.expirarVencidas();
+}
+
+export async function buscarPorId(id) {
+  return repo.buscarPorId(id);
 }
