@@ -34,9 +34,12 @@ export async function listarTodas() {
   return rows;
 }
 
+// Maior valor da coluna INTEGER do PostgreSQL; acima disso o id não pode existir.
+const MAIOR_ID = 2147483647;
+
 // Busca uma doação pelo id (devolve undefined se não existir).
 export async function buscarPorId(id) {
-  if (!/^[1-9]\d*$/.test(String(id))) return undefined;
+  if (!/^[1-9]\d*$/.test(String(id)) || Number(id) > MAIOR_ID) return undefined;
   const { rows } = await query('SELECT * FROM doacoes WHERE id = $1', [id]);
   return rows[0];
 }
