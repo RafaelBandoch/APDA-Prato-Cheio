@@ -27,6 +27,8 @@ export function criarApp() {
 
   app.get('/api/doacoes/:id', async (req, res) => {
     try {
+      // Aplica a Regra 1 antes de ler, como as listagens: o status devolvido já sai atualizado.
+      await doacoes.expirarVencidas();
       const doacao = await doacoes.buscarPorId(req.params.id);
       if (!doacao) return res.status(404).json({ erro: 'doação não encontrada' });
       res.json(doacao);

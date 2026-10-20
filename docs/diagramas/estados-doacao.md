@@ -79,9 +79,9 @@ O diagrama usa Coletada e Expirada como estados finais. A doação que retorna d
 
 **Problema 2:** A expiração foi modelada como um "temporizador" / "processo agendado" que dispara quando faltam 2h para a validade.
 
-**Justificativa:** A `validade` é guardada só como data (`AAAA-MM-DD`), sem hora, então "2h antes" precisou ser interpretado: o grupo definiu que a doação expira às 22h (horário de São Paulo) do dia da validade. Além disso, não existe agendador: `expirarVencidas()` em `src/repositorio.js` é executada sempre que a listagem é consultada (`GET /api/doacoes` e `GET /api/doacoes/todas`) e também pela rota `POST /api/doacoes/expirar`.
+**Justificativa:** A `validade` é guardada só como data (`AAAA-MM-DD`), sem hora, então "2h antes" precisou ser interpretado: o grupo definiu que a doação expira às 22h (horário de São Paulo) do dia da validade. Além disso, não existe agendador: `expirarVencidas()` em `src/repositorio.js` é executada sempre que uma doação é consultada (`GET /api/doacoes`, `GET /api/doacoes/todas` e `GET /api/doacoes/:id`) e também pela rota `POST /api/doacoes/expirar`.
 
-**Correção:** O rótulo da transição `disponivel → expirada` passou a descrever a regra real (22h de SP no dia da validade) e quando ela é aplicada (ao listar ou pela rota `/expirar`).
+**Correção:** O rótulo da transição `disponivel → expirada` passou a descrever a regra real (22h de SP no dia da validade) e quando ela é aplicada (ao consultar doações ou pela rota `/expirar`).
 
 **Problema 3:** A IA incluiu o estado `Coletada` e a transição `Aceita → Disponivel` como se fizessem parte do sistema.
 
@@ -107,7 +107,7 @@ stateDiagram-v2
     expirada --> [*]
 
     note right of expirada
-        Aplicada ao listar doações
+        Aplicada ao consultar doações
         e por POST /api/doacoes/expirar
     end note
 
