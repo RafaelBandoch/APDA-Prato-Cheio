@@ -40,9 +40,15 @@ export async function aceitar(id, ong) {
     throw new Error('ong é obrigatória');
   }
 
+  // Regra 1: aplica a expiração das 22h antes de decidir o aceite.
+  await repo.expirarVencidas();
+
   const existente = await repo.buscarPorId(id);
   if (!existente) {
     throw new Error('doação não encontrada');
+  }
+  if (existente.status === 'expirada') {
+    throw new Error('doação expirada');
   }
   if (existente.status !== 'disponivel') {
     throw new Error('doação já foi aceita por outra ONG');
