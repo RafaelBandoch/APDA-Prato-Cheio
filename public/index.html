@@ -104,6 +104,10 @@
       <button type="button" id="abrirCalendario" class="secundario" aria-haspopup="dialog" aria-controls="calendario">Calendário</button>
     </div>
     <p id="ajudaData" class="ajuda">Escolha hoje ou uma data futura.</p>
+    <label for="janela_inicio">Janela de coleta — início (opcional)</label>
+    <input id="janela_inicio" type="datetime-local">
+    <label for="janela_fim">Janela de coleta — fim (opcional)</label>
+    <input id="janela_fim" type="datetime-local">
     <button id="publicar">Publicar doação</button>
   </fieldset>
 
@@ -265,6 +269,8 @@
       for (const d of doacoes) {
         const li = document.createElement('li');
         preencherDoacao(li, d);
+        const janela = d.janela_fim ? ` | coleta até ${new Date(d.janela_fim).toLocaleString('pt-BR')}` : '';
+        li.querySelector('.detalhes').textContent += janela;
         const botao = document.createElement('button');
         botao.textContent = 'Aceitar';
         botao.onclick = () => realizarAcao(
@@ -286,6 +292,9 @@
         : '<li class="vazio">As doações publicadas aparecerão aqui.</li>';
       for (const d of doacoes) {
         const li = document.createElement('li');
+        const expirada = d.status === 'expirada';
+        li.style.color = expirada ? '#999' : '';
+        li.style.textDecoration = expirada ? 'line-through' : '';
         preencherDoacao(li, d);
         const status = document.createElement('span');
         status.className = 'status';
@@ -393,8 +402,11 @@
       try {
         await realizarAcao(document.getElementById('publicar'), '/api/doacoes', {
           tipo: campos[0].value.trim(), quantidade: campos[1].value.trim(),
-          validade: `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}-${String(data.getDate()).padStart(2, '0')}`
-        }, 'Doação publicada com sucesso!', doacao => {
+          validade: `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}-${String(data.getDate()).padStart(2, '0')}`,
+          // datetime-local vem sem fuso; o servidor compara em UTC (ISO 8601).
+          janela_inicio: document.getElementById('janela_inicio').value ? new Date(document.getElementById('janela_inicio').value).toISOString() : null,
+          janela_fim: document.getElementById('janela_fim').value ? new Date(document.getElementById('janela_fim').value).toISOString() : null,
+        },'Doação publicada com sucesso!', doacao => {
           doacoesDoDoador[doacao.id] = false;
           salvarDoacoesDoDoador();
           formulario.reset();
