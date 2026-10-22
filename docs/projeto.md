@@ -33,7 +33,10 @@
 | 3 — Não-retirada após aceite | **Liberação automática (A)** | É a mitigação registrada no Risco 1 da Análise: sem liberação, o alimento vence reservado e o objetivo de impacto (reduzir desperdício / alimentar beneficiários) falha. |
 
 ## Diagramas
-(contexto + dados ou componentes — em `docs/` ou como imagem)
+
+- [Diagrama de sequência do aceite](diagramas/sequencia-aceite.md): contém a versão inicial transcrita do SVG e a versão corrigida, alinhada ao código atual.
+- A ferramenta de IA usada para gerar a versão inicial não está identificada nos registros disponíveis. Essa identificação continua pendente.
+- A versão corrigida foi revisada com apoio do GitHub Copilot e conferida com a implementação.
 
 ## ADRs
 Ver `docs/adr/`. Cada decisão acima pode virar um ADR copiado de `0000-modelo-adr.md` quando for detalhada na implementação.

@@ -68,7 +68,7 @@ docs/retrospectivas/ retrospectiva de cada iteração
 .github/workflows/   pipeline de CI
 ```
 
-Diagrama de sequência do aceite: [versões inicial e corrigida](docs/diagramas/sequencia-aceite.md).
+Diagrama de sequência do aceite — [versão inicial e versão corrigida](docs/diagramas/sequencia-aceite.md).
 
 ## Como trabalhar (fluxo de Pull Request)
 
