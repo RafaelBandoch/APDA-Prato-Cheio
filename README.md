@@ -68,6 +68,8 @@ docs/retrospectivas/ retrospectiva de cada iteração
 .github/workflows/   pipeline de CI
 ```
 
+Diagrama de sequência do aceite: [versões inicial e corrigida](docs/diagramas/sequencia-aceite.md).
+
 ## Como trabalhar (fluxo de Pull Request)
 
 A partir da Unidade 2, **nada entra direto na `main`**:
