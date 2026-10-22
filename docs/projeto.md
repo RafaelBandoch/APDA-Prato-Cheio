@@ -1,8 +1,11 @@
 # Documento de Projeto — Prato Cheio
 
-*Trabalho 2 · máximo 4 páginas (fora diagramas) · entrega na Aula 10*
+*Iteração 2 · entrega prevista em 28/10/2026*
 
 ## Decisões de projeto
+
+As alternativas abaixo preservam a discussão inicial. Na versão entregue, janela de coleta e aceite atômico estão implementados; a decisão #3 (liberação após não retirada) continua planejada. A janela limita o instante do aceite; o sistema ainda não registra um horário de retirada nem confirma a coleta. A validade é uma data, interpretada como limite de disponibilidade às 22h de São Paulo.
+
 | # | Decisão | Alternativas | Requisito/risco da Análise que a motiva |
 |---|---|---|---|
 | 1 | Como resolver o conflito entre urgência do doador e disponibilidade da ONG na retirada | **A)** Doador define uma *Janela de Coleta*; o aceite só é válido se a ONG se comprometer a retirar dentro dessa janela e da validade à temperatura ambiente. **B)** Matching automático: o sistema cruza agendas das ONGs com o horário do doador e só oferece a doação a quem “encaixa”. | Conflito de prioridade Doador×ONG (Análise); critério de aceite HU03 (janela de coleta); segurança sanitária como critério inegociável. |
@@ -15,14 +18,14 @@
 
 | Critério | Alternativa A — Janela de Coleta definida pelo doador | Alternativa B — Matching automático por agenda |
 |---|---|---|
-| Segurança sanitária | Alta: o aceite amarra a retirada à validade e à janela explícita do doador. | Média/alta: depende da qualidade dos dados de agenda; erro de cadastro pode gerar retirada fora do prazo. |
+| Segurança sanitária | O aceite é validado pela janela e pela expiração; a retirada efetiva ainda não é acompanhada. | Média/alta: depende da qualidade dos dados de agenda; erro de cadastro pode gerar retirada fora do prazo. |
 | Simplicidade de implementação (U2/U3) | Alta: campos de início/fim na doação + validação no aceite. | Baixa: exige cadastro de disponibilidade por ONG, algoritmo de matching e manutenção contínua. |
 | Autonomia do doador | Alta: ele controla quando precisa liberar o espaço. | Baixa: o sistema decide quem vê a oferta. |
 | Cobertura de ONGs | Média: ONGs fora da janela não podem aceitar (pode sobrar comida se poucas encaixarem). | Potencialmente maior: só quem encaixa vê — mas ONGs flexíveis podem ficar de fora se a agenda estiver desatualizada. |
 | Risco operacional | Baixo no curto prazo; risco residual se a ONG aceitar e não retirar (tratado na decisão #3). | Alto: agenda desatualizada gera matches inválidos e frustração nas duas pontas. |
 | Alinhamento ao walking skeleton atual | Alto: estende o fluxo publicar → listar → aceitar sem novo módulo de agenda. | Baixo: muda o modelo de oferta antes do núcleo estabilizar. |
 
-**Escolha:** Alternativa A (Janela de Coleta). Atende o conflito da Análise com menos complexidade e preserva o critério sanitário no momento do aceite.
+**Escolha:** Alternativa A (Janela de Coleta). Atende o conflito da Análise com menos complexidade e valida os limites de tempo no momento do aceite. Isso não substitui credenciamento sanitário nem comprova retirada.
 
 ## Justificativa das decisões
 
@@ -30,42 +33,95 @@
 |---|---|---|
 | 1 — Conflito de retirada | **Janela de Coleta (A)** | A Análise já fixou que a segurança sanitária é inegociável e propôs a janela como resolução do conflito Doador×ONG. O critério HU03 exige que o aceite só confirme se a retirada estiver na janela e na validade à temperatura ambiente. |
 | 2 — Exclusividade de aceite | **Aceite atômico (A)** | A Regra de negócio 2 e o critério HU03 exigem trava imediata e remoção da listagem. O `UPDATE` condicional no repositório implementa isso sem fila intermediária, alinhado ao walking skeleton. |
-| 3 — Não-retirada após aceite | **Liberação automática (A)** | É a mitigação registrada no Risco 1 da Análise: sem liberação, o alimento vence reservado e o objetivo de impacto (reduzir desperdício / alimentar beneficiários) falha. |
+| 3 — Não-retirada após aceite | **Liberação automática (A), planejada** | É a mitigação registrada no Risco 1 da Análise: sem liberação, o alimento vence reservado e o objetivo de impacto (reduzir desperdício / alimentar beneficiários) falha. |
 
 ## Diagramas
-(contexto + dados ou componentes — em `docs/` ou como imagem)
+
+Escolhemos dois tipos de diagramas UML para responder a perguntas diferentes:
+
+- **Estados:** quais estados uma doação assume e quais eventos ou condições permitem mudar de estado? Esse modelo ajuda a discutir expiração, exclusividade do aceite e a diferença entre comportamentos implementados e previstos.
+- **Sequência:** como a ONG, a API, o domínio, o repositório e o banco interagem durante um aceite? Esse modelo ajuda a verificar a ordem das validações, os caminhos de erro e a atualização atômica que impede o aceite duplo.
+
+### Onde encontrar as evidências
+
+- [Diagrama de estados](diagramas/estados-doacao.md): reúne a versão original gerada pela IA, o prompt, a ferramenta utilizada (ChatGPT, GPT-5), quatro problemas com justificativas e correções, a versão final em Mermaid e a resposta à reflexão final.
+- [Crítica do diagrama de estados](diagramas/critica-estados.md): detalha os problemas identificados ao confrontar o modelo com as regras de negócio e o código.
+- [Diagrama de sequência](diagramas/sequencia-aceite.svg): versão publicada no PR #11. O SVG contém a fonte PlantUML embutida, permitindo recuperar e editar o modelo.
+- [Crítica do diagrama de sequência](diagramas/critica-sequencia.md): registra a ausência da expiração antes do aceite no desenho e a revisão ainda necessária. A identificação da ferramenta de IA e a publicação da versão revisada desse diagrama permanecem pendentes com seu autor.
+
+O Mermaid mantém o diagrama de estados como texto versionável e renderizado no GitHub. O PlantUML descreve as mensagens e os caminhos alternativos da sequência; o SVG permite visualizar o resultado. Fonte e imagem da mesma sequência representam o mesmo modelo, não duas versões da evolução.
+
+### Revisão e participação
+
+O diagrama de sequência foi adicionado por João Pedro no [PR #11](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/11). O diagrama de estados foi adicionado por Gabriel no [PR #12](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/12) e atualizado no [PR #15](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/15). As críticas foram integradas pelos [PRs #13](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/13) e [#14](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/14). Esses PRs possuem revisão de outro integrante; a distribuição das contribuições está na [retrospectiva da iteração 2](retrospectivas/2.md).
 
 ## ADRs
-Ver `docs/adr/`. Cada decisão acima pode virar um ADR copiado de `0000-modelo-adr.md` quando for detalhada na implementação.
+
+- [ADR 0001 — migração SQLite para PostgreSQL](adr/0001-migrar-sqlite-para-postgresql-em-conteiner.md): contexto, alternativas de ambiente, decisão e consequências da migração.
+- [ADR 0002 — escolha do SGBD](adr/0002-postgresql-como-sgbd.md): alternativas e trade-offs da escolha de PostgreSQL para preservar o aceite atômico.
+- [ADR 0003 — expansão para várias cidades](adr/0003-postgresql-gerenciado-para-escala-multicidade.md): proposta de evolução; não representa funcionalidade concluída nesta iteração.
+
+Os textos iniciais dos ADRs foram mantidos. As notas de alinhamento de 22/10/2026 distinguem decisões documentadas, implementação atual e evolução futura. Usar Supabase como conexão não implica que cidade, índice parcial, restauração ou migrações versionadas estejam implementados.
 
 ## Histórias de usuário
-Histórias implementadas:
-- **HU04.3** — Acompanhar doação por ID (`GET /api/doacoes/:id`)
-- **HU (Regra 1)** — Expiração automática (`POST /api/doacoes/expirar`)
-- **HU03 (critério janela)** — Validação de janela de coleta no aceite
 
-## Requisitos não-funcionais
-| Requisito | Como afeta o design |
-|---|---|
-| Aceite exclusivo sob concorrência | O caminho feliz e o caso de corrida precisam ser cobertos por teste; a regra vive no repositório/transação, não só na UI. |
-| Expiração de oferta (Regra 1) | Doações perecíveis saem da listagem 2h antes da validade; exige job ou verificação na listagem + notificação ao doador. |
-| Credenciamento sanitário “Ativo” (Regra 3 + Risco 2) | Listagem e aceite filtrados por status; validade do credenciamento com transição automática para “Pendente”. |
-| Tempo até o aceite < 15 min (Objetivo 3) | Por enquanto listagem passiva (hipótese da Análise); se o piloto falhar, o design prevê notificação ativa (push/SMS) sem mudar o núcleo publicar/aceitar. |
-| Migração SQLite → PostgreSQL (disciplina, U3) | Isolar SQL em `src/db.js` / repositório; decisão de hospedagem do Postgres em ADR próprio. |
+O fluxo básico publicar → listar → aceitar já existia. Nesta iteração, dois incrementos antes incompletos são o acompanhamento individual (HU04.3) e a expiração de disponíveis (critério da HU01 / Regra 1). A HU03 também foi ampliada com a janela de coleta. O escopo abaixo detalha o incremento real, sem declarar concluídos os critérios de autenticação e credenciamento presentes na análise inicial.
 
-**Os 3 RNFs obrigatórios e o impacto real no código:**
+### HU04.3 — Acompanhar doação
 
-| RNF | Impacto nas decisões |
-|---|---|
-| Aceite exclusivo sob concorrência | `UPDATE ... WHERE status='disponivel' RETURNING *` em `repositorio.js` — testado com duas ONGs aceitando em sequência (a segunda recebe 400); a condição no `UPDATE` impede o aceite duplo também sob concorrência |
-| Expiração automática ≤ 2h antes da validade | `expirarVencidas()` no repositório + rota `/expirar`; campo `validade` no schema |
-| Janela de coleta obrigatória quando definida | Validação em `doacoes.js` `aceitar()` com `janela_inicio`/`janela_fim` no schema |
+Como doador ou ONG, quero consultar o status de uma doação pelo ID, para saber se ela está disponível, aceita ou expirada.
 
-## Critérios de validação do projeto
-- As três decisões acima aparecem rastreadas a item concreto de `docs/analise.md` (conflito, regra ou risco).
-- A tabela de trade-offs usa critérios mensuráveis/discutíveis (segurança, complexidade, autonomia, risco).
-- O walking skeleton (publicar → listar → aceitar) permanece o núcleo; decisões #1 e #3 estendem esse fluxo sem substituí-lo.
-- Testes cobrem exclusividade de aceite (decisão #2) e, quando implementadas, rejeição de aceite fora da janela (decisão #1) e reabertura após não-retirada (decisão #3).
+Critérios de aceite:
+
+- Uma consulta `GET /api/doacoes/:id` de doação existente retorna `200` com seus dados e status.
+- Após um aceite, a consulta retorna `aceita` e a ONG associada.
+- Ao atingir a expiração, a consulta retorna `expirada`, mesmo sem uma listagem anterior.
+- IDs inexistentes, inválidos ou superiores ao limite `INTEGER` retornam `404` com `doação não encontrada`.
+- `GET /api/doacoes/todas` continua sendo a listagem de acompanhamento e não é interpretado como um ID.
+
+Evidências em [tests/doacoes.test.js](../tests/doacoes.test.js), bloco `acompanhar doação por id`: `devolve a doação pelo id`, `mostra o status aceita depois do aceite`, `mostra o status expirada a partir das 22h de São Paulo sem passar pela listagem`, casos parametrizados de ID e `mantém /api/doacoes/todas como listagem`. Implementação em `src/app.js`, `src/doacoes.js` e `src/repositorio.js`; integrada pelo [PR #12](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/12).
+
+### HU01 — Expirar ofertas disponíveis (Regra 1)
+
+Como doador, quero que uma oferta que atingiu o limite de validade deixe de ser oferecida às ONGs, para impedir novos aceites fora do prazo.
+
+Critérios de aceite:
+
+- Doações `disponivel` expiram às 22h de `America/Sao_Paulo` no dia da validade, ou na próxima operação que aplique a regra.
+- As listagens omitem as expiradas da oferta pública e mantêm seu status no acompanhamento. Doações aceitas e com validade futura são preservadas.
+- `POST /api/doacoes/expirar` retorna `{ expiradas: [...] }`, com as linhas alteradas; sem mudanças, retorna uma lista vazia.
+- Um aceite antes das 22h continua possível, respeitando a janela. A partir das 22h, retorna `400` com `doação expirada`, mesmo sem consulta anterior.
+
+Evidências em [tests/doacoes.test.js](../tests/doacoes.test.js): `expira disponíveis às 22h de São Paulo e preserva aceitas e futuras`, `devolve a lista das expiradas e uma lista vazia na segunda chamada`, `aceita no dia da validade antes das 22h de São Paulo` e `recusa aceitar depois das 22h de São Paulo sem consulta prévia`. Implementação no repositório, no domínio e nas rotas; integrada pelos [PRs #10](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/10), [#12](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/12) e [#13](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/13).
+
+A regra é aplicada sob demanda, sem agendador. O aviso visual ao doador depende do navegador que publicou a doação e de atualizar as listas. Não há login, vínculo persistido com um doador nem notificação externa; esses limites impedem considerar concluída toda a HU01 original.
+
+### HU03 — Respeitar a janela de coleta no aceite
+
+Como doador, quero informar os limites de uma janela de coleta, para que a ONG só aceite enquanto esses limites permitirem.
+
+Critérios de aceite:
+
+- A publicação preserva os horários opcionais de início e fim; rejeita datas de janela não interpretáveis e fim menor ou igual ao início, com `400`.
+- O aceite antes do início ou depois do fim é recusado com `400`, inclusive se houver somente um dos limites.
+- Sem limites, o aceite mantém as demais regras; dentro da janela, uma doação disponível pode ser aceita.
+- Uma segunda ONG não aceita uma doação já aceita; o `UPDATE` condicional mantém a exclusividade no banco.
+
+Evidências em [tests/doacoes.test.js](../tests/doacoes.test.js): `persiste a janela de coleta informada pelo doador`, `aceita dentro da janela de coleta`, `aceite fora da janela de coleta retorna 400`, `aceite antes do início da janela retorna 400 mesmo sem fim definido`, `recusa publicar com o fim da janela antes do início`, `recusa publicar com data inválida na janela` e `recusa aceitar uma doação que já foi aceita por outra ONG`. O teste de dois aceites é sequencial; não há teste simultâneo. Incremento integrado pelos [PRs #11](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/11) e [#14](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/14).
+
+## Requisitos não funcionais
+
+1. **Integridade dos dados sob concorrência.** Uma oferta não pode ser atribuída a duas ONGs. Por isso, o repositório usa `UPDATE ... WHERE status = 'disponivel' RETURNING *` em uma única instrução; uma tentativa sem linha alterada é recusada pelo domínio. O teste sequencial confirma a recusa do segundo aceite; a cobertura de chamadas simultâneas permanece uma melhoria de teste.
+2. **Manutenibilidade.** Regras de negócio, HTTP e persistência têm responsabilidades separadas (`src/doacoes.js`, `src/app.js`, `src/repositorio.js` e `src/db.js`). Isso permite alterar o driver e o SQL sem transferir regras para a interface. A migração preservou o contrato `query()` com retorno `rows`; os testes exercitam os fluxos via API.
+3. **Reprodutibilidade do ambiente de validação.** A suíte deve executar com o mesmo SGBD da aplicação e sem depender da senha de um serviço compartilhado. O CI usa Node.js 22, PostgreSQL 16 e `npm ci`; o [README](../README.md#como-rodar-sem-supabase) documenta contêineres separados para aplicação e testes. A escolha evita substituir PostgreSQL por SQLite ou por mocks para validar a persistência.
+
+Expiração e janela de coleta são regras funcionais associadas às histórias acima. O tempo de aceite menor que 15 minutos permanece uma hipótese de produto da análise, sem medição de piloto nesta entrega.
+
+## Validação e limites
+
+Execute a suíte com o banco exclusivo descrito no [README](../README.md#banco-exclusivo-de-testes). Os testes cobrem as histórias, datas e fusos, dados obrigatórios, IDs inválidos e erros de aceite. Eles não comprovam a execução da interface no navegador, entrega de notificações externas ou operação do Supabase.
+
+Permanecem planejados: autenticação, credenciamento sanitário, confirmação de retirada, liberação após não retirada e expansão multicidade. A decisão #3 não possui implementação nem teste de reabertura nesta versão. A revisão da sequência continua com seu autor, conforme a seção de diagramas.
 
 ## Uso de IA
 Rascunho inicial da estrutura de decisões e da tabela de trade-offs gerado com apoio de IA a partir de `docs/analise.md` e do estado do código; o grupo revisou o alinhamento com regras, riscos e critérios de aceite antes de considerar o texto entregável.

@@ -1,5 +1,13 @@
 # ADR 0001: Migrar de SQLite para PostgreSQL em contêiner Docker
 
+## Nota de alinhamento — 22/10/2026
+
+O registro inicial abaixo foi preservado, inclusive o status atribuído na época. Na implementação atual, a migração de SQLite para PostgreSQL está concluída: `src/db.js` usa `pg.Pool`, `DATABASE_URL`, identidade inteira e `criada_em TIMESTAMPTZ`; o repositório usa `$1`, `$2` e `RETURNING`. O CI executa PostgreSQL 16. O README oferece Docker local como alternativa ao Supabase, sem exigir a senha do banco compartilhado.
+
+A aplicação aceita uma conexão PostgreSQL local ou remota; este repositório não comprova um servidor Docker de produção, rotina de backup ou infraestrutura multicidade. A indicação histórica de substituição pelo ADR 0003 registra a proposta de hospedagem; não significa que as mudanças de schema e operação desse ADR estejam executadas. Consulte a nota do ADR 0003 para o escopo futuro.
+
+## Registro original
+
 - **Data:** 2026-10-08
 - **Status:** substituído pelo [ADR 0003](0003-postgresql-gerenciado-para-escala-multicidade.md). O PostgreSQL continua valendo; o que mudou foi a hospedagem. Mantido como histórico.
 

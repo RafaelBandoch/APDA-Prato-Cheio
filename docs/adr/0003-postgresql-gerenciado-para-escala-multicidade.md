@@ -1,5 +1,15 @@
 # ADR 0003: PostgreSQL gerenciado para atender várias cidades
 
+## Nota de alinhamento — 22/10/2026
+
+O texto inicial e seu status "aceito" foram preservados como registro da proposta de evolução. **A expansão descrita neste ADR não está implementada nesta entrega.** O uso de uma conexão Supabase não comprova as demais capacidades planejadas.
+
+`src/db.js` ainda cria a tabela com `CREATE TABLE IF NOT EXISTS` e adiciona colunas de forma idempotente. Não há coluna `cidade`, filtro por cidade, índice parcial, migrações versionadas nem conversão de `validade` e da janela para `timestamptz`. Também não há evidência neste repositório de configuração ou validação de backup, restauração e failover do provedor.
+
+Essas mudanças dependem de uma evolução posterior, com implementação e validação próprias. Para a entrega atual, a decisão efetivada é usar PostgreSQL via `DATABASE_URL`, com `pg.Pool` e aceite atômico; o desenvolvimento e a avaliação podem usar o Docker local descrito no README. As consequências operacionais abaixo são expectativas da proposta, não resultados verificados.
+
+## Registro original
+
 - **Data:** 2026-10-08
 - **Status:** aceito. Substitui o [ADR 0001](0001-migrar-sqlite-para-postgresql-em-conteiner.md), mantido como histórico. O [ADR 0002](0002-postgresql-como-sgbd.md) continua valendo.
 

@@ -1,5 +1,13 @@
 # ADR 0002: Usar PostgreSQL como banco de dados
 
+## Nota de alinhamento — 22/10/2026
+
+O texto inicial abaixo foi preservado como justificativa da escolha do SGBD. O código atual já usa PostgreSQL com pool e consultas parametrizadas, incluindo `UPDATE ... WHERE status = 'disponivel' RETURNING *`. Os `?` citados no contexto pertencem à versão anterior do SQL.
+
+O schema atual mantém `validade`, `janela_inicio` e `janela_fim` como `TEXT`; somente `criada_em` é `TIMESTAMPTZ`. Portanto, a observação histórica sobre conversão de `validade` para `Date` não descreve o retorno atual. Índice parcial, PostGIS e entidades de credenciamento são possibilidades mencionadas na decisão, não recursos já implementados. A exclusividade tem teste de dois aceites sequenciais; não há teste de corrida simultânea.
+
+## Registro original
+
 - **Data:** 2026-10-08
 - **Status:** aceito
 

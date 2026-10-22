@@ -13,40 +13,95 @@ Conecta doadores de alimentos excedentes a ONGs, antes que a comida se perca.
 - João Pedro Alves de Lima — @CapJao
 - Rafael Alexandre Alves Bandoch — @RafaelBandoch
 
-## Como rodar
+## Documentação e evidências
 
-Requisito: **Node.js 22.13 ou superior**. Mais nada — o banco da Unidade 1 é SQLite, embutido no próprio Node.
+- [Análise, histórias de usuário e regras de negócio](docs/analise.md)
+- [Decisões de projeto e requisitos não funcionais](docs/projeto.md)
+- [Registros de decisões arquiteturais (ADRs)](docs/adr/)
+- [Atividade de diagramas — escolha dos tipos, versões, críticas e PRs](docs/projeto.md#diagramas)
+- [Diagrama de sequência do aceite](docs/diagramas/sequencia-aceite.svg)
+- [Análise crítica do diagrama de sequência](docs/diagramas/critica-sequencia.md)
+- [Diagrama de estados da doação — versões inicial e final, análise e reflexão](docs/diagramas/estados-doacao.md)
+- [Análise crítica do diagrama de estados](docs/diagramas/critica-estados.md)
+- [Retrospectivas](docs/retrospectivas/)
+- [Testes automatizados](tests/doacoes.test.js)
+- [Pipeline de integração contínua](.github/workflows/ci.yml)
 
-> Esta é a **stack preferencial** da disciplina. Se o seu grupo optar por outra, registre o ADR de justificativa e garanta os mesmos compromissos: repositório público com CI verde, rota de saúde, testes por um comando, os três comandos documentados aqui no README e banco relacional migrado para PostgreSQL na Unidade 3.
+## Como rodar sem Supabase
+
+**A equipe utiliza PostgreSQL hospedado no Supabase.** Se o professor quiser executar o projeto com o banco utilizado pelo grupo, pode solicitar a conexão e a senha à equipe, que fornecerá os dados por um canal privado. As credenciais não são publicadas no repositório.
+
+Como alternativa, o procedimento abaixo permite executar o projeto com PostgreSQL local via Docker, sem acesso ao Supabase e sem precisar solicitar a senha.
+
+Requisitos: **Node.js 22.13 ou superior**, npm e Docker em execução. Os comandos abaixo usam Bash (Linux, macOS ou WSL). A aplicação usa PostgreSQL; SQLite pertence à versão inicial.
+
+Não é necessário conhecer a senha do Supabase. O caminho local cria um PostgreSQL 16 independente, com dados próprios, e fornece `DATABASE_URL` diretamente em cada comando. Essa variável tem precedência sobre o `.env` existente. A autenticação sem senha abaixo é para a demonstração local, com a porta publicada apenas em `127.0.0.1`.
+
+### Banco da aplicação
+
+Na primeira execução:
 
 ```bash
-npm install       # só na primeira vez
-npm run db:migrar # cria o schema (arquivo dados.sqlite)
-npm start         # sobe em http://localhost:3000
-npm test          # roda os testes
-npm run dev       # sobe recarregando a cada alteração
+npm ci
+docker run --name prato-cheio-db --detach \
+  --publish 127.0.0.1:54329:5432 \
+  --env POSTGRES_HOST_AUTH_METHOD=trust \
+  --env POSTGRES_DB=pratocheio \
+  --volume prato-cheio-dados:/var/lib/postgresql/data \
+  postgres:16
+docker exec prato-cheio-db pg_isready -U postgres -d pratocheio
 ```
 
-Os testes usam SQLite **em memória**, então não sujam o banco de desenvolvimento.
+Aguarde o último comando informar `accepting connections`; se o banco ainda estiver iniciando, repita a verificação. Depois:
 
-> Ao rodar `npm test` o Node imprime `ExperimentalWarning: SQLite is an experimental feature`.
-> É esperado — o módulo embutido `node:sqlite` ainda é marcado como experimental. Não é erro e não reprova o CI.
+```bash
+DATABASE_URL=postgresql://postgres@127.0.0.1:54329/pratocheio npm run db:migrar
+DATABASE_URL=postgresql://postgres@127.0.0.1:54329/pratocheio npm start
+```
 
-> **Atenção:** não deixe o repositório dentro de uma pasta sincronizada (OneDrive, Google Drive, Dropbox) nem em disco de rede. O SQLite precisa de trava de arquivo e nesses lugares falha com `disk I/O error`. Clone em uma pasta local comum, por exemplo `~/dev/`.
+Abra <http://localhost:3000>. A rota <http://localhost:3000/api/saude> responde `{ "ok": true }`. Para desenvolver com recarga automática, use a mesma variável com `npm run dev`.
 
-## O banco: SQLite agora, PostgreSQL depois
+O schema é criado por `npm run db:migrar` e também ao iniciar o servidor. O projeto ainda usa `CREATE TABLE IF NOT EXISTS` e adições idempotentes de colunas em `src/db.js`, sem um sistema de migrações versionadas.
 
-| Unidade | Banco | O que precisa instalar |
-|---|---|---|
-| 1 — Análise | **SQLite** (`node:sqlite`, embutido) | nada além do Node |
-| 2 — Projeto | SQLite | nada |
-| 3 — Construção | **PostgreSQL** (após refatorar) | um PostgreSQL acessível — o caminho é escolha do grupo |
+### Banco exclusivo de testes
 
-A troca não é acidente de percurso: na Unidade 2 vocês registram a decisão em um **ADR** (alternativas, consequências, riscos) e na Unidade 3 executam a **refatoração** — com os testes existentes provando que o comportamento se manteve.
+**Os testes apagam as doações do banco indicado por `DATABASE_URL`.** Use este segundo contêiner, separado do banco da aplicação e do Supabase:
 
-O `src/db.js` foi desenhado para isso: ele expõe `query()` devolvendo `{ rows }`, então a troca do banco fica contida nele e não vaza para as regras de negócio.
+```bash
+docker run --name prato-cheio-testes --detach \
+  --publish 127.0.0.1:54330:5432 \
+  --env POSTGRES_HOST_AUTH_METHOD=trust \
+  --env POSTGRES_DB=pratocheio_testes \
+  postgres:16
+docker exec prato-cheio-testes pg_isready -U postgres -d pratocheio_testes
+```
 
-**Como o PostgreSQL vai subir é decisão do grupo**, comparada no mesmo ADR: instalar o PostgreSQL na máquina, subir um contêiner, ou usar um serviço gerenciado gratuito (Neon, Supabase, Render). A disciplina não impõe o caminho — exige o banco alcançável por `DATABASE_URL`, o schema migrado e o CI verde. Cada opção tem custo e risco diferentes, e reconhecê-los é parte da decisão.
+Após `accepting connections`, execute:
+
+```bash
+DATABASE_URL=postgresql://postgres@127.0.0.1:54330/pratocheio_testes npm test
+```
+
+A suíte usa PostgreSQL real e cria o schema necessário. O CI faz o mesmo com Node.js 22 e PostgreSQL 16; os testes não usam SQLite em memória.
+
+### Execuções seguintes
+
+Os comandos `docker run` criam os contêineres uma única vez. Para parar e retomar os mesmos contêineres:
+
+```bash
+docker stop prato-cheio-db prato-cheio-testes
+docker start prato-cheio-db prato-cheio-testes
+```
+
+Confira a prontidão novamente e repita os comandos da aplicação ou dos testes. As portas `54329` e `54330` precisam estar livres na primeira criação; se escolher outras, atualize também as URLs correspondentes.
+
+### Usar o Supabase da equipe
+
+Para usar o banco compartilhado, solicite à equipe a conexão e a senha; forneceremos os dados por um canal privado. Configure sua `DATABASE_URL` somente no `.env` local, seguindo [`.env.example`](.env.example), e execute `npm ci`, `npm run db:migrar` e `npm start`. Para executar de forma independente, use o caminho com Docker acima. Em ambos os casos, mantenha os testes no banco exclusivo documentado.
+
+## Evolução do banco
+
+O projeto começou com SQLite e já foi migrado para PostgreSQL, usando `pg.Pool` e consultas parametrizadas em `src/repositorio.js`. O banco pode ser local ou remoto, conforme `DATABASE_URL`; o código não exige recursos específicos do Supabase. Os [ADRs](docs/adr/) preservam os registros iniciais e incluem notas datadas sobre o que foi efetivamente implementado.
 
 ## Estrutura
 
@@ -54,8 +109,8 @@ O `src/db.js` foi desenhado para isso: ele expõe `query()` devolvendo `{ rows }
 src/server.js        entrypoint (npm start)
 src/db.js            conexão e schema do banco (pronto)
 src/app.js           rotas da API
-src/doacoes.js       regras de negócio      <- implementar (U1)
-src/repositorio.js   acesso ao banco (SQL)  <- implementar (U1)
+src/doacoes.js       regras de negócio das doações
+src/repositorio.js   acesso ao PostgreSQL (SQL)
 public/index.html    interface (funciona no celular)
 tests/               testes automatizados
 docs/analise.md      documento de análise   (Trabalho 1)
@@ -82,15 +137,13 @@ git push -u origin historia/ong-aceita-doacao
 Abra o Pull Request no GitHub, preencha o template, espere o **CI ficar verde** e
 peça a revisão de **outro integrante**. Só então faça o merge.
 
-## O que já está pronto e o que falta
+## Estado da iteração 2
 
-Pronto: estrutura do projeto, interface básica, rota de saúde, **conexão com o banco e o schema** (`src/db.js`), CI configurado e um teste passando (prova que a aplicação sobe).
+Implementados: publicar, listar e aceitar doações; acompanhar por ID; expirar disponíveis às 22h de São Paulo no dia da validade; informar e validar janela de coleta; persistir em PostgreSQL. Os critérios e os testes correspondentes estão em [docs/projeto.md](docs/projeto.md#histórias-de-usuário).
 
-Falta (Trabalho 1 — walking skeleton): implementar `src/doacoes.js` (regras) e
-`src/repositorio.js` (SQL) para que a história zero funcione ponta a ponta —
-**um doador publica uma doação → uma ONG vê a doação → a ONG a aceita e ela sai da lista.**
-Os critérios de aceite estão em `tests/doacoes.test.js` como `it.todo`: troque cada um
-por um teste de verdade conforme implementa.
+Autenticação, credenciamento sanitário, confirmação de retirada e liberação após não retirada continuam fora do incremento implementado. O aviso de expiração ao doador funciona apenas no navegador que publicou a doação, por `localStorage` e atualização das listas; não há envio externo nem agendador.
+
+Para a entrega, a equipe ainda precisa produzir o vídeo de 5 a 8 minutos, consolidar a versão no branch `entrega-2` e realizar os envios individuais. O roteiro existente em `docs/demo.md` é um modelo anterior de três minutos e não comprova a gravação exigida.
 
 ## Uso de IA
 
