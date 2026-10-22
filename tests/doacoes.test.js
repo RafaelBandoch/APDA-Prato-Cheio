@@ -660,6 +660,41 @@ describe('janela de coleta', () => {
     expect(res2.body.erro).toMatch(/janela/i);
   });
 
+  it('aceite antes do início da janela retorna 400 mesmo sem fim definido', async () => {
+    const res1 = await request(app).post('/api/doacoes').send({
+      tipo: 'Sopa', quantidade: '5L', validade: '2030-01-01',
+      janela_inicio: '2030-01-01T00:00:00Z', // janela ainda não começou
+    });
+    const res2 = await request(app)
+      .post(`/api/doacoes/${res1.body.id}/aceitar`)
+      .send({ ong: 'ONG X' });
+
+    expect(res2.status).toBe(400);
+    expect(res2.body.erro).toMatch(/janela/i);
+  });
+
+  it('recusa publicar com o fim da janela antes do início', async () => {
+    const res = await request(app).post('/api/doacoes').send({
+      tipo: 'Sopa', quantidade: '5L', validade: '2030-01-01',
+      janela_inicio: '2030-01-01T02:00:00Z',
+      janela_fim:    '2030-01-01T01:00:00Z',
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toMatch(/depois do início/i);
+    expect((await request(app).get('/api/doacoes/todas')).body).toHaveLength(0);
+  });
+
+  it('recusa publicar com data inválida na janela', async () => {
+    const res = await request(app).post('/api/doacoes').send({
+      tipo: 'Sopa', quantidade: '5L', validade: '2030-01-01',
+      janela_fim: 'amanhã',
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toMatch(/janela/i);
+  });
+
   it('aceite sem janela definida funciona normalmente', async () => {
     const res1 = await request(app).post('/api/doacoes')
       .send({ tipo: 'Fruta', quantidade: '2kg', validade: '2030-01-01' });
