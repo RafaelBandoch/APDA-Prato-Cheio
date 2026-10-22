@@ -2,11 +2,11 @@
 
 ## Nota de alinhamento — 22/10/2026
 
-O texto inicial e seu status "aceito" foram preservados como registro da proposta de evolução. **A expansão descrita neste ADR não está implementada nesta entrega.** O uso de uma conexão Supabase não comprova as demais capacidades planejadas.
+Este ADR permanece **aceito** e substitui a decisão de hospedagem do ADR 0001. A equipe utiliza PostgreSQL gerenciado no Supabase, concretizando essa parte da decisão. O registro original abaixo foi preservado integralmente. A implementação das demais consequências é descrita separadamente a seguir.
 
 `src/db.js` ainda cria a tabela com `CREATE TABLE IF NOT EXISTS` e adiciona colunas de forma idempotente. Não há coluna `cidade`, filtro por cidade, índice parcial, migrações versionadas nem conversão de `validade` e da janela para `timestamptz`. Também não há evidência neste repositório de configuração ou validação de backup, restauração e failover do provedor.
 
-Essas mudanças dependem de uma evolução posterior, com implementação e validação próprias. Para a entrega atual, a decisão efetivada é usar PostgreSQL via `DATABASE_URL`, com `pg.Pool` e aceite atômico; o desenvolvimento e a avaliação podem usar o Docker local descrito no README. As consequências operacionais abaixo são expectativas da proposta, não resultados verificados.
+Essas mudanças adicionais ainda dependem de implementação e validação próprias. A aplicação já usa PostgreSQL via `DATABASE_URL`, com `pg.Pool` e aceite atômico; a conexão da equipe é com o Supabase, e o desenvolvimento e a avaliação também podem usar o Docker local descrito no README. Recursos do provedor, como backup, restauração e failover, precisam de evidências operacionais para serem apresentados como validados. Essas pendências não reclassificam a decisão aceita como proposta.
 
 ## Registro original
 

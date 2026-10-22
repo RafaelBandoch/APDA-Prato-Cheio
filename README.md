@@ -143,7 +143,7 @@ Implementados: publicar, listar e aceitar doações; acompanhar por ID; expirar 
 
 Autenticação, credenciamento sanitário, confirmação de retirada e liberação após não retirada continuam fora do incremento implementado. O aviso de expiração ao doador funciona apenas no navegador que publicou a doação, por `localStorage` e atualização das listas; não há envio externo nem agendador.
 
-Para a entrega, a equipe ainda precisa produzir o vídeo de 5 a 8 minutos, consolidar a versão no branch `entrega-2` e realizar os envios individuais. O roteiro existente em `docs/demo.md` é um modelo anterior de três minutos e não comprova a gravação exigida.
+A entrega exige um vídeo de 5 a 8 minutos com todos os integrantes, o branch `entrega-2` representando a versão entregue e os envios individuais no Teams. O roteiro existente em `docs/demo.md` é um modelo anterior de três minutos e deve ser adaptado à duração e ao conteúdo exigidos. Esta orientação não registra o andamento da gravação ou dos envios da equipe.
 
 ## Uso de IA
 

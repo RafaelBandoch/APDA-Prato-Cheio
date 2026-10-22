@@ -1,6 +1,8 @@
 # Documento de Projeto — Prato Cheio
 
-*Iteração 2 · entrega prevista em 28/10/2026*
+*Trabalho 2 · máximo 4 páginas (fora diagramas) · entrega na Aula 10*
+
+*Entrega prevista: 28/10/2026*
 
 ## Decisões de projeto
 
@@ -59,19 +61,21 @@ O diagrama de sequência foi adicionado por João Pedro no [PR #11](https://gith
 
 - [ADR 0001 — migração SQLite para PostgreSQL](adr/0001-migrar-sqlite-para-postgresql-em-conteiner.md): contexto, alternativas de ambiente, decisão e consequências da migração.
 - [ADR 0002 — escolha do SGBD](adr/0002-postgresql-como-sgbd.md): alternativas e trade-offs da escolha de PostgreSQL para preservar o aceite atômico.
-- [ADR 0003 — expansão para várias cidades](adr/0003-postgresql-gerenciado-para-escala-multicidade.md): proposta de evolução; não representa funcionalidade concluída nesta iteração.
+- [ADR 0003 — PostgreSQL gerenciado para várias cidades](adr/0003-postgresql-gerenciado-para-escala-multicidade.md): decisão aceita, com hospedagem adotada no Supabase; as mudanças adicionais de schema e a validação dos recursos operacionais têm pendências registradas na nota de alinhamento.
 
-Os textos iniciais dos ADRs foram mantidos. As notas de alinhamento de 22/10/2026 distinguem decisões documentadas, implementação atual e evolução futura. Usar Supabase como conexão não implica que cidade, índice parcial, restauração ou migrações versionadas estejam implementados.
+Os textos iniciais e os status dos ADRs foram mantidos. As notas de alinhamento de 22/10/2026 distinguem a decisão aceita da execução de cada consequência. A adoção do Supabase atende à escolha de hospedagem gerenciada; cidade, índice parcial, migrações versionadas e validações operacionais continuam sendo acompanhados separadamente.
 
 ## Histórias de usuário
 
 O fluxo básico publicar → listar → aceitar já existia. Nesta iteração, dois incrementos antes incompletos são o acompanhamento individual (HU04.3) e a expiração de disponíveis (critério da HU01 / Regra 1). A HU03 também foi ampliada com a janela de coleta. O escopo abaixo detalha o incremento real, sem declarar concluídos os critérios de autenticação e credenciamento presentes na análise inicial.
 
+Os identificadores, atores e objetivos abaixo seguem as histórias de [docs/analise.md](analise.md#histórias-de-usuário). Os critérios originais permanecem em [Critérios de aceite](analise.md#critérios-de-aceite); os itens técnicos desta seção detalham os incrementos implementados, sem substituir os requisitos originais.
+
 ### HU04.3 — Acompanhar doação
 
-Como doador ou ONG, quero consultar o status de uma doação pelo ID, para saber se ela está disponível, aceita ou expirada.
+Como doador ou ONG, quero acompanhar o status da doação, para saber em que etapa do processo ela está.
 
-Critérios de aceite:
+Incremento desta iteração: consulta individual por ID. Critérios de aceite detalhados desse incremento:
 
 - Uma consulta `GET /api/doacoes/:id` de doação existente retorna `200` com seus dados e status.
 - Após um aceite, a consulta retorna `aceita` e a ONG associada.
@@ -81,11 +85,11 @@ Critérios de aceite:
 
 Evidências em [tests/doacoes.test.js](../tests/doacoes.test.js), bloco `acompanhar doação por id`: `devolve a doação pelo id`, `mostra o status aceita depois do aceite`, `mostra o status expirada a partir das 22h de São Paulo sem passar pela listagem`, casos parametrizados de ID e `mantém /api/doacoes/todas como listagem`. Implementação em `src/app.js`, `src/doacoes.js` e `src/repositorio.js`; integrada pelo [PR #12](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/12).
 
-### HU01 — Expirar ofertas disponíveis (Regra 1)
+### HU01 — Publicar doação
 
-Como doador, quero que uma oferta que atingiu o limite de validade deixe de ser oferecida às ONGs, para impedir novos aceites fora do prazo.
+Como doador, quero publicar uma doação de alimentos, para disponibilizá-la para ONGs.
 
-Critérios de aceite:
+Incremento desta iteração: expiração de ofertas disponíveis, conforme o segundo critério da HU01 e a Regra 1. Critérios de aceite detalhados desse incremento:
 
 - Doações `disponivel` expiram às 22h de `America/Sao_Paulo` no dia da validade, ou na próxima operação que aplique a regra.
 - As listagens omitem as expiradas da oferta pública e mantêm seu status no acompanhamento. Doações aceitas e com validade futura são preservadas.
@@ -96,11 +100,11 @@ Evidências em [tests/doacoes.test.js](../tests/doacoes.test.js): `expira dispon
 
 A regra é aplicada sob demanda, sem agendador. O aviso visual ao doador depende do navegador que publicou a doação e de atualizar as listas. Não há login, vínculo persistido com um doador nem notificação externa; esses limites impedem considerar concluída toda a HU01 original.
 
-### HU03 — Respeitar a janela de coleta no aceite
+### HU03 — Aceitar doação
 
-Como doador, quero informar os limites de uma janela de coleta, para que a ONG só aceite enquanto esses limites permitirem.
+Como ONG, quero aceitar uma doação, para reservar os alimentos para minha organização.
 
-Critérios de aceite:
+Incremento desta iteração: respeitar a janela de coleta informada pelo doador no aceite, incluindo a validação dos limites na publicação. Critérios de aceite detalhados desse incremento:
 
 - A publicação preserva os horários opcionais de início e fim; rejeita datas de janela não interpretáveis e fim menor ou igual ao início, com `400`.
 - O aceite antes do início ou depois do fim é recusado com `400`, inclusive se houver somente um dos limites.
@@ -122,6 +126,3 @@ Expiração e janela de coleta são regras funcionais associadas às histórias 
 Execute a suíte com o banco exclusivo descrito no [README](../README.md#banco-exclusivo-de-testes). Os testes cobrem as histórias, datas e fusos, dados obrigatórios, IDs inválidos e erros de aceite. Eles não comprovam a execução da interface no navegador, entrega de notificações externas ou operação do Supabase.
 
 Permanecem planejados: autenticação, credenciamento sanitário, confirmação de retirada, liberação após não retirada e expansão multicidade. A decisão #3 não possui implementação nem teste de reabertura nesta versão. A revisão da sequência continua com seu autor, conforme a seção de diagramas.
-
-## Uso de IA
-Rascunho inicial da estrutura de decisões e da tabela de trade-offs gerado com apoio de IA a partir de `docs/analise.md` e do estado do código; o grupo revisou o alinhamento com regras, riscos e critérios de aceite antes de considerar o texto entregável.
