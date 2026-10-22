@@ -57,7 +57,7 @@ Histórias implementadas:
 
 | RNF | Impacto nas decisões |
 |---|---|
-| Aceite exclusivo sob concorrência | `UPDATE ... WHERE status='disponivel' RETURNING *` em `repositorio.js` — testado com duas ONGs simultâneas |
+| Aceite exclusivo sob concorrência | `UPDATE ... WHERE status='disponivel' RETURNING *` em `repositorio.js` — testado com duas ONGs aceitando em sequência (a segunda recebe 400); a condição no `UPDATE` impede o aceite duplo também sob concorrência |
 | Expiração automática ≤ 2h antes da validade | `expirarVencidas()` no repositório + rota `/expirar`; campo `validade` no schema |
 | Janela de coleta obrigatória quando definida | Validação em `doacoes.js` `aceitar()` com `janela_inicio`/`janela_fim` no schema |
 
