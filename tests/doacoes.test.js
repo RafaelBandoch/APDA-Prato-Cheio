@@ -397,6 +397,38 @@ describe('aceitar uma doação', () => {
     expect(res.body.erro).toMatch(/ong é obrigat/i);
   });
 
+  it('aceita no dia da validade antes das 22h de São Paulo', async () => {
+    const criada = await request(app)
+      .post('/api/doacoes')
+      .send({ tipo: 'Pão', quantidade: '20 unidades', validade: '2026-08-01' });
+    expect(criada.status).toBe(201);
+
+    vi.setSystemTime(new Date('2026-08-02T00:59:59Z'));
+    const antes = await request(app)
+      .post(`/api/doacoes/${criada.body.id}/aceitar`)
+      .send({ ong: 'ONG Esperança' });
+    expect(antes.status).toBe(200);
+    expect(antes.body.status).toBe('aceita');
+  });
+
+  it('recusa aceitar depois das 22h de São Paulo sem consulta prévia', async () => {
+    const criada = await request(app)
+      .post('/api/doacoes')
+      .send({ tipo: 'Pão', quantidade: '20 unidades', validade: '2026-08-01' });
+    expect(criada.status).toBe(201);
+
+    vi.setSystemTime(new Date('2026-08-02T01:00:00Z'));
+    const res = await request(app)
+      .post(`/api/doacoes/${criada.body.id}/aceitar`)
+      .send({ ong: 'ONG Esperança' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toMatch(/expirada/i);
+    const gravada = await repositorio.buscarPorId(criada.body.id);
+    expect(gravada.status).toBe('expirada');
+    expect(gravada.ong).toBeNull();
+  });
+
   it('mantém as outras doações disponíveis depois de aceitar uma', async () => {
     const primeira = await publicar();
     const segunda = await publicar();
