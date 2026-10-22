@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterAll, afterEach, vi } from 'vites
 import request from 'supertest';
 import { criarApp } from '../src/app.js';
 import { migrar, limparBanco, encerrar } from '../src/db.js';
+import * as repositorio from '../src/repositorio.js';
 import { buscarPorId, expirarVencidas } from '../src/doacoes.js';
 
 const app = criarApp();
@@ -396,6 +397,38 @@ describe('aceitar uma doação', () => {
     expect(res.body.erro).toMatch(/ong é obrigat/i);
   });
 
+  it('aceita no dia da validade antes das 22h de São Paulo', async () => {
+    const criada = await request(app)
+      .post('/api/doacoes')
+      .send({ tipo: 'Pão', quantidade: '20 unidades', validade: '2026-08-01' });
+    expect(criada.status).toBe(201);
+
+    vi.setSystemTime(new Date('2026-08-02T00:59:59Z'));
+    const antes = await request(app)
+      .post(`/api/doacoes/${criada.body.id}/aceitar`)
+      .send({ ong: 'ONG Esperança' });
+    expect(antes.status).toBe(200);
+    expect(antes.body.status).toBe('aceita');
+  });
+
+  it('recusa aceitar depois das 22h de São Paulo sem consulta prévia', async () => {
+    const criada = await request(app)
+      .post('/api/doacoes')
+      .send({ tipo: 'Pão', quantidade: '20 unidades', validade: '2026-08-01' });
+    expect(criada.status).toBe(201);
+
+    vi.setSystemTime(new Date('2026-08-02T01:00:00Z'));
+    const res = await request(app)
+      .post(`/api/doacoes/${criada.body.id}/aceitar`)
+      .send({ ong: 'ONG Esperança' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toMatch(/expirada/i);
+    const gravada = await repositorio.buscarPorId(criada.body.id);
+    expect(gravada.status).toBe('expirada');
+    expect(gravada.ong).toBeNull();
+  });
+
   it('mantém as outras doações disponíveis depois de aceitar uma', async () => {
     const primeira = await publicar();
     const segunda = await publicar();
@@ -409,5 +442,287 @@ describe('aceitar uma doação', () => {
     expect(res.body).toHaveLength(1);
     expect(res.body[0].id).toBe(segunda.id);
     expect(res.body[0].status).toBe('disponivel');
+  });
+});
+
+describe('expirar doações vencidas', () => {
+  beforeEach(async () => {
+    await migrar();
+    await limparBanco();
+  });
+
+  afterAll(async () => {
+    await encerrar();
+  });
+
+  it('marca como expirada uma doação disponível com validade passada', async () => {
+    const doacao = await repositorio.inserir({
+      tipo: 'Arroz',
+      quantidade: '5kg',
+      validade: '2020-01-01',
+    });
+
+    const expiradas = await repositorio.expirarVencidas();
+    const atualizada = await repositorio.buscarPorId(doacao.id);
+
+    expect(expiradas).toHaveLength(1);
+    expect(expiradas[0].id).toBe(doacao.id);
+    expect(atualizada.status).toBe('expirada');
+  });
+
+  it('expira ao atualizar as listas a partir das 22h de São Paulo', async () => {
+    const criada = await request(app).post('/api/doacoes')
+      .send({ tipo: 'Sopa', quantidade: '5L', validade: '2026-08-01' });
+    expect(criada.status).toBe(201);
+
+    vi.setSystemTime(new Date('2026-08-02T00:59:59Z'));
+    const antes = await request(app).get('/api/doacoes');
+    expect(antes.status).toBe(200);
+    expect(antes.body.map(doacao => doacao.id)).toContain(criada.body.id);
+
+    vi.setSystemTime(new Date('2026-08-02T01:00:00Z'));
+    const acompanhamento = await request(app).get('/api/doacoes/todas');
+    expect(acompanhamento.status).toBe(200);
+    expect(acompanhamento.body.find(doacao => doacao.id === criada.body.id).status).toBe('expirada');
+    const disponiveis = await request(app).get('/api/doacoes');
+    expect(disponiveis.status).toBe(200);
+    expect(disponiveis.body).toHaveLength(0);
+  });
+
+  it('a lista de disponíveis expira vencidas e preserva aceitas e futuras', async () => {
+    const publicar = async validade => {
+      const res = await request(app).post('/api/doacoes')
+        .send({ tipo: 'Sopa', quantidade: '5L', validade });
+      expect(res.status).toBe(201);
+      return res.body;
+    };
+    const vencida = await publicar('2026-08-01');
+    const futura = await publicar('2026-08-02');
+    const aceita = await publicar('2026-08-01');
+    const aceite = await request(app).post(`/api/doacoes/${aceita.id}/aceitar`).send({ ong: 'ONG A' });
+    expect(aceite.status).toBe(200);
+
+    vi.setSystemTime(new Date('2026-08-02T01:00:00Z'));
+    const lista = await request(app).get('/api/doacoes');
+    expect(lista.status).toBe(200);
+    expect(lista.body.map(doacao => doacao.id)).toEqual([futura.id]);
+    expect((await repositorio.buscarPorId(vencida.id)).status).toBe('expirada');
+    expect((await repositorio.buscarPorId(aceita.id)).status).toBe('aceita');
+    expect(await repositorio.expirarVencidas()).toEqual([]);
+  });
+});
+
+describe('acompanhar doação por id', () => {
+  beforeEach(async () => {
+    await migrar();
+    await limparBanco();
+  });
+
+  afterAll(async () => {
+    await encerrar();
+  });
+
+  async function publicar(validade = '2026-08-02') {
+    const res = await request(app)
+      .post('/api/doacoes')
+      .send({ tipo: 'Leite', quantidade: '3L', validade });
+    expect(res.status).toBe(201);
+    return res.body;
+  }
+
+  it('devolve a doação pelo id', async () => {
+    const doacao = await publicar();
+
+    const res = await request(app).get(`/api/doacoes/${doacao.id}`);
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe(doacao.id);
+    expect(res.body.tipo).toBe('Leite');
+    expect(res.body.status).toBe('disponivel');
+  });
+
+  it('mostra o status aceita depois do aceite', async () => {
+    const doacao = await publicar();
+    await request(app)
+      .post(`/api/doacoes/${doacao.id}/aceitar`)
+      .send({ ong: 'ONG Esperança' });
+
+    const res = await request(app).get(`/api/doacoes/${doacao.id}`);
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('aceita');
+    expect(res.body.ong).toBe('ONG Esperança');
+  });
+
+  it('mostra o status expirada a partir das 22h de São Paulo sem passar pela listagem', async () => {
+    const doacao = await publicar('2026-08-01');
+
+    vi.setSystemTime(new Date('2026-08-02T00:59:59Z'));
+    expect((await request(app).get(`/api/doacoes/${doacao.id}`)).body.status).toBe('disponivel');
+
+    vi.setSystemTime(new Date('2026-08-02T01:00:00Z'));
+    const res = await request(app).get(`/api/doacoes/${doacao.id}`);
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('expirada');
+  });
+
+  it.each(['99999', 'abc', '2147483648', '99999999999999999999'])(
+    'responde 404 para o id %s',
+    async id => {
+      const res = await request(app).get(`/api/doacoes/${id}`);
+      expect(res.status).toBe(404);
+      expect(res.body.erro).toMatch(/não encontrada/);
+    },
+  );
+
+  it('mantém /api/doacoes/todas como listagem', async () => {
+    const doacao = await publicar();
+
+    const res = await request(app).get('/api/doacoes/todas');
+    expect(res.status).toBe(200);
+    expect(res.body.map(d => d.id)).toEqual([doacao.id]);
+  });
+});
+
+describe('expirar doações pela rota', () => {
+  beforeEach(async () => {
+    await migrar();
+    await limparBanco();
+  });
+
+  afterAll(async () => {
+    await encerrar();
+  });
+
+  it('devolve a lista das expiradas e uma lista vazia na segunda chamada', async () => {
+    const vencida = await request(app).post('/api/doacoes')
+      .send({ tipo: 'Pão', quantidade: '10', validade: '2026-08-01' });
+    const futura = await request(app).post('/api/doacoes')
+      .send({ tipo: 'Pão', quantidade: '10', validade: '2026-08-02' });
+
+    vi.setSystemTime(new Date('2026-08-02T01:00:00Z'));
+    const res = await request(app).post('/api/doacoes/expirar');
+    expect(res.status).toBe(200);
+    expect(res.body.expiradas.map(d => d.id)).toEqual([vencida.body.id]);
+    expect(res.body.expiradas[0].status).toBe('expirada');
+
+    const segunda = await request(app).post('/api/doacoes/expirar');
+    expect(segunda.status).toBe(200);
+    expect(segunda.body.expiradas).toEqual([]);
+
+    expect((await request(app).get(`/api/doacoes/${futura.body.id}`)).body.status).toBe('disponivel');
+  });
+
+  it('devolve lista vazia quando não há nada vencido', async () => {
+    const res = await request(app).post('/api/doacoes/expirar');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ expiradas: [] });
+  });
+});
+
+describe('expirar doações vencidas', () => {
+  beforeEach(async () => { await migrar(); await limparBanco(); });
+  afterAll(async () => { await encerrar(); });
+
+  it('doação com validade passada não aparece na lista de disponíveis', async () => {
+    // Publica com validade passada (direto no repositório: a rota recusa validade passada)
+    await repositorio.inserir({ tipo: 'Arroz', quantidade: '5kg', validade: '2020-01-01' });
+
+    // Expira
+    await request(app).post('/api/doacoes/expirar');
+
+    const res = await request(app).get('/api/doacoes');
+    expect(res.body).toHaveLength(0);
+  });
+
+  it('POST /api/doacoes/expirar retorna quantas foram expiradas', async () => {
+    await repositorio.inserir({ tipo: 'Pão', quantidade: '10', validade: '2020-01-01' });
+
+    const res = await request(app).post('/api/doacoes/expirar');
+    expect(res.status).toBe(200);
+    expect(res.body.expiradas.length).toBeGreaterThan(0);
+  });
+});
+
+describe('janela de coleta', () => {
+  beforeEach(async () => { await migrar(); await limparBanco(); });
+  afterAll(async () => { await encerrar(); });
+
+  it('aceite fora da janela de coleta retorna 400', async () => {
+    const res1 = await request(app).post('/api/doacoes').send({
+      tipo: 'Sopa', quantidade: '5L', validade: '2030-01-01',
+      janela_inicio: '2020-01-01T00:00:00Z',
+      janela_fim:    '2020-01-01T01:00:00Z', // janela já passou
+    });
+    const res2 = await request(app)
+      .post(`/api/doacoes/${res1.body.id}/aceitar`)
+      .send({ ong: 'ONG X' });
+
+    expect(res2.status).toBe(400);
+    expect(res2.body.erro).toMatch(/janela/i);
+  });
+
+  it('aceite antes do início da janela retorna 400 mesmo sem fim definido', async () => {
+    const res1 = await request(app).post('/api/doacoes').send({
+      tipo: 'Sopa', quantidade: '5L', validade: '2030-01-01',
+      janela_inicio: '2030-01-01T00:00:00Z', // janela ainda não começou
+    });
+    const res2 = await request(app)
+      .post(`/api/doacoes/${res1.body.id}/aceitar`)
+      .send({ ong: 'ONG X' });
+
+    expect(res2.status).toBe(400);
+    expect(res2.body.erro).toMatch(/janela/i);
+  });
+
+  it('recusa publicar com o fim da janela antes do início', async () => {
+    const res = await request(app).post('/api/doacoes').send({
+      tipo: 'Sopa', quantidade: '5L', validade: '2030-01-01',
+      janela_inicio: '2030-01-01T02:00:00Z',
+      janela_fim:    '2030-01-01T01:00:00Z',
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toMatch(/depois do início/i);
+    expect((await request(app).get('/api/doacoes/todas')).body).toHaveLength(0);
+  });
+
+  it('recusa publicar com data inválida na janela', async () => {
+    const res = await request(app).post('/api/doacoes').send({
+      tipo: 'Sopa', quantidade: '5L', validade: '2030-01-01',
+      janela_fim: 'amanhã',
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toMatch(/janela/i);
+  });
+
+  it('aceite sem janela definida funciona normalmente', async () => {
+    const res1 = await request(app).post('/api/doacoes')
+      .send({ tipo: 'Fruta', quantidade: '2kg', validade: '2030-01-01' });
+    const res2 = await request(app)
+      .post(`/api/doacoes/${res1.body.id}/aceitar`)
+      .send({ ong: 'ONG Y' });
+
+    expect(res2.status).toBe(200);
+    expect(res2.body.status).toBe('aceita');
+  });
+});
+
+describe('acompanhar doação por ID', () => {
+  beforeEach(async () => { await migrar(); await limparBanco(); });
+  afterAll(async () => { await encerrar(); });
+
+  it('GET /api/doacoes/:id retorna os dados da doação', async () => {
+    const criada = await request(app).post('/api/doacoes')
+      .send({ tipo: 'Leite', quantidade: '3L', validade: '2030-01-01' });
+
+    const res = await request(app).get(`/api/doacoes/${criada.body.id}`);
+    expect(res.status).toBe(200);
+    expect(res.body.tipo).toBe('Leite');
+  });
+
+  it('GET /api/doacoes/:id retorna 404 para ID inexistente', async () => {
+    const res = await request(app).get('/api/doacoes/99999');
+    expect(res.status).toBe(404);
+    expect(res.body.erro).toMatch(/não encontrada/i);
   });
 });

@@ -1,63 +1,78 @@
-// Conexão com o banco. Já vem pronto — não precisa mexer agora.
+// Conexão com o banco — PostgreSQL via driver `pg`.
 //
-// UNIDADE 1: SQLite, embutido no Node (módulo `node:sqlite`) — nada para instalar.
-// UNIDADE 3: este arquivo será refatorado para PostgreSQL. A interface abaixo
-//            (`query` devolvendo `{ rows }`) foi desenhada para que a troca fique
-//            contida aqui, sem espalhar mudança pelo resto do código.
-// `node:sqlite` é módulo embutido do Node 22+. Carregado via createRequire porque
-// algumas ferramentas (como o Vite/Vitest) ainda não o reconhecem como embutido.
-import { createRequire } from 'node:module';
-const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite');
+// A interface pública (query, migrar, limparBanco, encerrar) é a mesma de antes,
+// então nenhum outro arquivo precisou mudar (src/doacoes.js, src/repositorio.js, etc).
+//
+// Configuração: defina DATABASE_URL no ambiente.
+// Exemplo: postgres://user:senha@host:5432/dbname
+// Localmente: copie .env.example para .env e preencha.
+// No CI (GitHub Actions): configure como secret no repositório.
+import pg from 'pg';
+const { Pool } = pg;
 
-const ARQUIVO = process.env.DATABASE_FILE || 'dados.sqlite';
+if (!process.env.DATABASE_URL) {
+  throw new Error(
+    'DATABASE_URL não definida. Copie .env.example para .env e preencha a variável.',
+  );
+}
 
-let db;
+// Pool reutiliza conexões — essencial quando há múltiplas instâncias da aplicação.
+let pool;
 
-export function conexao() {
-  if (!db) db = new DatabaseSync(ARQUIVO);
-  return db;
+function obterPool() {
+  if (!pool) {
+    pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  }
+  return pool;
 }
 
 /**
- * Executa uma consulta e devolve { rows }.
- * Use `?` como marcador de parâmetro (evita injeção de SQL):
- *   query('SELECT * FROM doacoes WHERE id = ?', [id])
+ * Executa uma consulta e devolve { rows, alteradas }.
+ * Use $1, $2... como marcadores de parâmetro:
+ *   query('SELECT * FROM doacoes WHERE id = $1', [id])
  */
 export async function query(sql, valores = []) {
-  const stmt = conexao().prepare(sql);
-  const ehLeitura = /^\s*(select|with)/i.test(sql) || /returning/i.test(sql);
-  if (ehLeitura) return { rows: stmt.all(...valores) };
-  const info = stmt.run(...valores);
-  return { rows: [], alteradas: info.changes };
+  const resultado = await obterPool().query(sql, valores);
+  return {
+    rows: resultado.rows,
+    alteradas: resultado.rowCount ?? 0,
+  };
 }
 
-/** Cria o schema, se ainda não existir. Rodado por `npm run db:migrar` e ao subir o servidor. */
+/** Cria/atualiza o schema. Rodado por `npm run db:migrar` e ao subir o servidor. */
 export async function migrar() {
-  conexao().exec(`
+  await obterPool().query(`
     CREATE TABLE IF NOT EXISTS doacoes (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      tipo        TEXT NOT NULL,
-      quantidade  TEXT NOT NULL,
-      validade    TEXT NOT NULL,
-      status      TEXT NOT NULL DEFAULT 'disponivel',
-      ong         TEXT,
-      criada_em   TEXT NOT NULL DEFAULT (datetime('now'))
+      id            INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+      tipo          TEXT NOT NULL,
+      quantidade    TEXT NOT NULL,
+      validade      TEXT NOT NULL,
+      status        TEXT NOT NULL DEFAULT 'disponivel',
+      ong           TEXT,
+      janela_inicio TEXT,
+      janela_fim    TEXT,
+      criada_em     TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `);
-  const colunas = conexao().prepare('PRAGMA table_info(doacoes)').all().map(coluna => coluna.name);
-  if (!colunas.includes('janela_inicio')) {
-    conexao().exec('ALTER TABLE doacoes ADD COLUMN janela_inicio TEXT');
-  }
-  if (!colunas.includes('janela_fim')) {
-    conexao().exec('ALTER TABLE doacoes ADD COLUMN janela_fim TEXT');
+
+  // Colunas adicionadas após a criação inicial — idempotente.
+  for (const col of ['janela_inicio', 'janela_fim']) {
+    await obterPool().query(`
+      ALTER TABLE doacoes ADD COLUMN IF NOT EXISTS ${col} TEXT
+    `);
   }
 }
 
 /** Apaga todos os dados. Usado pelos testes. */
 export async function limparBanco() {
-  conexao().exec('DELETE FROM doacoes');
+  await obterPool().query('DELETE FROM doacoes');
 }
 
+/** Fecha o pool. Usado pelos testes para não deixar conexões abertas. */
 export async function encerrar() {
-  if (db) { db.close(); db = undefined; }
+  if (!pool) return;
+
+  const poolAtual = pool;
+  pool = undefined;
+  await poolAtual.end();
 }
