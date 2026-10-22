@@ -20,6 +20,14 @@ export async function criarDoacao({ tipo, quantidade, validade, janela_inicio = 
   if (validade < hoje) {
     throw new Error('A validade deve ser hoje ou uma data futura');
   }
+  for (const limite of [janela_inicio, janela_fim]) {
+    if (limite && Number.isNaN(Date.parse(limite))) {
+      throw new Error('Informe datas válidas para a janela de coleta');
+    }
+  }
+  if (janela_inicio && janela_fim && Date.parse(janela_fim) <= Date.parse(janela_inicio)) {
+    throw new Error('O fim da janela de coleta deve ser depois do início');
+  }
   return repo.inserir({ tipo, quantidade, validade, janela_inicio, janela_fim });
 }
 
@@ -53,12 +61,12 @@ export async function aceitar(id, ong) {
   if (existente.status !== 'disponivel') {
     throw new Error('doação já foi aceita por outra ONG');
   }
-  if (existente.janela_fim) {
-    const agora = new Date().toISOString();
-    const inicio = existente.janela_inicio ?? '1970-01-01T00:00:00Z';
-    if (agora < inicio || agora > existente.janela_fim) {
-      throw new Error('aceite fora da janela de coleta definida pelo doador');
-    }
+  // Cada limite da janela vale sozinho: só início, só fim ou os dois.
+  const agora = Date.now();
+  const antesDoInicio = existente.janela_inicio && agora < Date.parse(existente.janela_inicio);
+  const depoisDoFim = existente.janela_fim && agora > Date.parse(existente.janela_fim);
+  if (antesDoInicio || depoisDoFim) {
+    throw new Error('aceite fora da janela de coleta definida pelo doador');
   }
 
   const atualizada = await repo.aceitar(id, ong);

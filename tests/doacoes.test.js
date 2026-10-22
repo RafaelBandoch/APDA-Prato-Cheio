@@ -617,3 +617,112 @@ describe('expirar doações pela rota', () => {
     expect(res.body).toEqual({ expiradas: [] });
   });
 });
+
+describe('expirar doações vencidas', () => {
+  beforeEach(async () => { await migrar(); await limparBanco(); });
+  afterAll(async () => { await encerrar(); });
+
+  it('doação com validade passada não aparece na lista de disponíveis', async () => {
+    // Publica com validade passada (direto no repositório: a rota recusa validade passada)
+    await repositorio.inserir({ tipo: 'Arroz', quantidade: '5kg', validade: '2020-01-01' });
+
+    // Expira
+    await request(app).post('/api/doacoes/expirar');
+
+    const res = await request(app).get('/api/doacoes');
+    expect(res.body).toHaveLength(0);
+  });
+
+  it('POST /api/doacoes/expirar retorna quantas foram expiradas', async () => {
+    await repositorio.inserir({ tipo: 'Pão', quantidade: '10', validade: '2020-01-01' });
+
+    const res = await request(app).post('/api/doacoes/expirar');
+    expect(res.status).toBe(200);
+    expect(res.body.expiradas.length).toBeGreaterThan(0);
+  });
+});
+
+describe('janela de coleta', () => {
+  beforeEach(async () => { await migrar(); await limparBanco(); });
+  afterAll(async () => { await encerrar(); });
+
+  it('aceite fora da janela de coleta retorna 400', async () => {
+    const res1 = await request(app).post('/api/doacoes').send({
+      tipo: 'Sopa', quantidade: '5L', validade: '2030-01-01',
+      janela_inicio: '2020-01-01T00:00:00Z',
+      janela_fim:    '2020-01-01T01:00:00Z', // janela já passou
+    });
+    const res2 = await request(app)
+      .post(`/api/doacoes/${res1.body.id}/aceitar`)
+      .send({ ong: 'ONG X' });
+
+    expect(res2.status).toBe(400);
+    expect(res2.body.erro).toMatch(/janela/i);
+  });
+
+  it('aceite antes do início da janela retorna 400 mesmo sem fim definido', async () => {
+    const res1 = await request(app).post('/api/doacoes').send({
+      tipo: 'Sopa', quantidade: '5L', validade: '2030-01-01',
+      janela_inicio: '2030-01-01T00:00:00Z', // janela ainda não começou
+    });
+    const res2 = await request(app)
+      .post(`/api/doacoes/${res1.body.id}/aceitar`)
+      .send({ ong: 'ONG X' });
+
+    expect(res2.status).toBe(400);
+    expect(res2.body.erro).toMatch(/janela/i);
+  });
+
+  it('recusa publicar com o fim da janela antes do início', async () => {
+    const res = await request(app).post('/api/doacoes').send({
+      tipo: 'Sopa', quantidade: '5L', validade: '2030-01-01',
+      janela_inicio: '2030-01-01T02:00:00Z',
+      janela_fim:    '2030-01-01T01:00:00Z',
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toMatch(/depois do início/i);
+    expect((await request(app).get('/api/doacoes/todas')).body).toHaveLength(0);
+  });
+
+  it('recusa publicar com data inválida na janela', async () => {
+    const res = await request(app).post('/api/doacoes').send({
+      tipo: 'Sopa', quantidade: '5L', validade: '2030-01-01',
+      janela_fim: 'amanhã',
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toMatch(/janela/i);
+  });
+
+  it('aceite sem janela definida funciona normalmente', async () => {
+    const res1 = await request(app).post('/api/doacoes')
+      .send({ tipo: 'Fruta', quantidade: '2kg', validade: '2030-01-01' });
+    const res2 = await request(app)
+      .post(`/api/doacoes/${res1.body.id}/aceitar`)
+      .send({ ong: 'ONG Y' });
+
+    expect(res2.status).toBe(200);
+    expect(res2.body.status).toBe('aceita');
+  });
+});
+
+describe('acompanhar doação por ID', () => {
+  beforeEach(async () => { await migrar(); await limparBanco(); });
+  afterAll(async () => { await encerrar(); });
+
+  it('GET /api/doacoes/:id retorna os dados da doação', async () => {
+    const criada = await request(app).post('/api/doacoes')
+      .send({ tipo: 'Leite', quantidade: '3L', validade: '2030-01-01' });
+
+    const res = await request(app).get(`/api/doacoes/${criada.body.id}`);
+    expect(res.status).toBe(200);
+    expect(res.body.tipo).toBe('Leite');
+  });
+
+  it('GET /api/doacoes/:id retorna 404 para ID inexistente', async () => {
+    const res = await request(app).get('/api/doacoes/99999');
+    expect(res.status).toBe(404);
+    expect(res.body.erro).toMatch(/não encontrada/i);
+  });
+});

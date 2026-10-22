@@ -38,6 +38,12 @@
 ## ADRs
 Ver `docs/adr/`. Cada decisão acima pode virar um ADR copiado de `0000-modelo-adr.md` quando for detalhada na implementação.
 
+## Histórias de usuário
+Histórias implementadas:
+- **HU04.3** — Acompanhar doação por ID (`GET /api/doacoes/:id`)
+- **HU (Regra 1)** — Expiração automática (`POST /api/doacoes/expirar`)
+- **HU03 (critério janela)** — Validação de janela de coleta no aceite
+
 ## Requisitos não-funcionais
 | Requisito | Como afeta o design |
 |---|---|
@@ -46,6 +52,14 @@ Ver `docs/adr/`. Cada decisão acima pode virar um ADR copiado de `0000-modelo-a
 | Credenciamento sanitário “Ativo” (Regra 3 + Risco 2) | Listagem e aceite filtrados por status; validade do credenciamento com transição automática para “Pendente”. |
 | Tempo até o aceite < 15 min (Objetivo 3) | Por enquanto listagem passiva (hipótese da Análise); se o piloto falhar, o design prevê notificação ativa (push/SMS) sem mudar o núcleo publicar/aceitar. |
 | Migração SQLite → PostgreSQL (disciplina, U3) | Isolar SQL em `src/db.js` / repositório; decisão de hospedagem do Postgres em ADR próprio. |
+
+**Os 3 RNFs obrigatórios e o impacto real no código:**
+
+| RNF | Impacto nas decisões |
+|---|---|
+| Aceite exclusivo sob concorrência | `UPDATE ... WHERE status='disponivel' RETURNING *` em `repositorio.js` — testado com duas ONGs aceitando em sequência (a segunda recebe 400); a condição no `UPDATE` impede o aceite duplo também sob concorrência |
+| Expiração automática ≤ 2h antes da validade | `expirarVencidas()` no repositório + rota `/expirar`; campo `validade` no schema |
+| Janela de coleta obrigatória quando definida | Validação em `doacoes.js` `aceitar()` com `janela_inicio`/`janela_fim` no schema |
 
 ## Critérios de validação do projeto
 - As três decisões acima aparecem rastreadas a item concreto de `docs/analise.md` (conflito, regra ou risco).
