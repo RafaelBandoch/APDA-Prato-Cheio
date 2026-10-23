@@ -50,6 +50,7 @@ Escolhemos dois tipos de diagramas UML para responder a perguntas diferentes:
 - [Crítica do diagrama de estados](diagramas/critica-estados.md): detalha os problemas identificados ao confrontar o modelo com as regras de negócio e o código.
 - [Diagrama de sequência](diagramas/sequencia-aceite.md): reúne a transcrição da versão inicial, a análise dos problemas e a versão corrigida em Mermaid, publicada no PR #17. O [arquivo original está preservado no histórico do Git](https://github.com/RafaelBandoch/APDA-Prato-Cheio/blob/88e9ec58fc73f10dcff0ac7ae8d0b7354cfb540d/docs/diagramas/sequencia-aceite.svg). GitHub Copilot foi usado na revisão final; a ferramenta de IA que gerou a versão inicial ainda não foi identificada nos registros disponíveis.
 - [Crítica do diagrama de sequência](diagramas/critica-sequencia.md): registra o problema de expiração antes do aceite e sua correção no código. A versão revisada do modelo está no Markdown acima; a referência ao SVG e a indicação de revisão pendente nesse texto ainda precisam ser atualizadas por seu autor.
+- [Análise geral dos diagramas](diagramas/analise-geral.md): resume o que está bom e o que ainda falta nos dois diagramas.
 
 Os dois tipos são apresentados em Mermaid, como texto editável, versionável e renderizado no GitHub. Cada documento distingue a versão inicial da revisada. A sequência foi originalmente publicada como SVG gerado por PlantUML; sua migração para Markdown e a revisão do fluxo estão registradas no PR #17.
 
