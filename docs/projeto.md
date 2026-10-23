@@ -48,14 +48,14 @@ Escolhemos dois tipos de diagramas UML para responder a perguntas diferentes:
 
 - [Diagrama de estados](diagramas/estados-doacao.md): reúne a versão original gerada pela IA, o prompt, a ferramenta utilizada (ChatGPT, GPT-5), quatro problemas com justificativas e correções, a versão final em Mermaid e a resposta à reflexão final.
 - [Crítica do diagrama de estados](diagramas/critica-estados.md): detalha os problemas identificados ao confrontar o modelo com as regras de negócio e o código.
-- [Diagrama de sequência](diagramas/sequencia-aceite.svg): versão publicada no PR #11. O SVG contém a fonte PlantUML embutida, permitindo recuperar e editar o modelo.
-- [Crítica do diagrama de sequência](diagramas/critica-sequencia.md): registra a ausência da expiração antes do aceite no desenho e a revisão ainda necessária. A identificação da ferramenta de IA e a publicação da versão revisada desse diagrama permanecem pendentes com seu autor.
+- [Diagrama de sequência](diagramas/sequencia-aceite.md): reúne a transcrição da versão inicial, a análise dos problemas e a versão corrigida em Mermaid, publicada no PR #17. O [arquivo original está preservado no histórico do Git](https://github.com/RafaelBandoch/APDA-Prato-Cheio/blob/88e9ec58fc73f10dcff0ac7ae8d0b7354cfb540d/docs/diagramas/sequencia-aceite.svg). GitHub Copilot foi usado na revisão final; a ferramenta de IA que gerou a versão inicial ainda não foi identificada nos registros disponíveis.
+- [Crítica do diagrama de sequência](diagramas/critica-sequencia.md): registra o problema de expiração antes do aceite e sua correção no código. A versão revisada do modelo está no Markdown acima; a referência ao SVG e a indicação de revisão pendente nesse texto ainda precisam ser atualizadas por seu autor.
 
-O Mermaid mantém o diagrama de estados como texto versionável e renderizado no GitHub. O PlantUML descreve as mensagens e os caminhos alternativos da sequência; o SVG permite visualizar o resultado. Fonte e imagem da mesma sequência representam o mesmo modelo, não duas versões da evolução.
+Os dois tipos são apresentados em Mermaid, como texto editável, versionável e renderizado no GitHub. Cada documento distingue a versão inicial da revisada. A sequência foi originalmente publicada como SVG gerado por PlantUML; sua migração para Markdown e a revisão do fluxo estão registradas no PR #17.
 
 ### Revisão e participação
 
-O diagrama de sequência foi adicionado por João Pedro no [PR #11](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/11). O diagrama de estados foi adicionado por Gabriel no [PR #12](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/12) e atualizado no [PR #15](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/15). As críticas foram integradas pelos [PRs #13](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/13) e [#14](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/14). Esses PRs possuem revisão de outro integrante; a distribuição das contribuições está na [retrospectiva da iteração 2](retrospectivas/2.md).
+O diagrama de sequência foi adicionado por João Pedro no [PR #11](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/11). O diagrama de estados foi adicionado por Gabriel no [PR #12](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/12) e atualizado no [PR #15](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/15). As críticas foram integradas pelos [PRs #13](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/13) e [#14](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/14). Esses PRs possuem revisão de outro integrante. A sequência foi migrada para Markdown e revisada no [PR #17](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/17); a distribuição das contribuições está na [retrospectiva da iteração 2](retrospectivas/2.md).
 
 ## ADRs
 
@@ -125,4 +125,4 @@ Expiração e janela de coleta são regras funcionais associadas às histórias 
 
 Execute a suíte com o banco exclusivo descrito no [README](../README.md#banco-exclusivo-de-testes). Os testes cobrem as histórias, datas e fusos, dados obrigatórios, IDs inválidos e erros de aceite. Eles não comprovam a execução da interface no navegador, entrega de notificações externas ou operação do Supabase.
 
-Permanecem planejados: autenticação, credenciamento sanitário, confirmação de retirada, liberação após não retirada e expansão multicidade. A decisão #3 não possui implementação nem teste de reabertura nesta versão. A revisão da sequência continua com seu autor, conforme a seção de diagramas.
+Permanecem planejados: autenticação, credenciamento sanitário, confirmação de retirada, liberação após não retirada e expansão multicidade. A decisão #3 não possui implementação nem teste de reabertura nesta versão. As versões iniciais e revisadas dos dois tipos de diagrama estão indicadas na seção de diagramas.

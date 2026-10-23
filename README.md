@@ -19,7 +19,7 @@ Conecta doadores de alimentos excedentes a ONGs, antes que a comida se perca.
 - [Decisões de projeto e requisitos não funcionais](docs/projeto.md)
 - [Registros de decisões arquiteturais (ADRs)](docs/adr/)
 - [Atividade de diagramas — escolha dos tipos, versões, críticas e PRs](docs/projeto.md#diagramas)
-- [Diagrama de sequência do aceite](docs/diagramas/sequencia-aceite.svg)
+- [Diagrama de sequência do aceite — versões inicial e corrigida](docs/diagramas/sequencia-aceite.md)
 - [Análise crítica do diagrama de sequência](docs/diagramas/critica-sequencia.md)
 - [Diagrama de estados da doação — versões inicial e final, análise e reflexão](docs/diagramas/estados-doacao.md)
 - [Análise crítica do diagrama de estados](docs/diagramas/critica-estados.md)
@@ -122,8 +122,6 @@ docs/demo.md         roteiro da demo        (Trabalho 3)
 docs/retrospectivas/ retrospectiva de cada iteração
 .github/workflows/   pipeline de CI
 ```
-
-Diagrama de sequência do aceite — [versão inicial e versão corrigida](docs/diagramas/sequencia-aceite.md).
 
 ## Como trabalhar (fluxo de Pull Request)
 
