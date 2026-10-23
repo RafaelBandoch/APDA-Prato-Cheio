@@ -23,6 +23,7 @@ Conecta doadores de alimentos excedentes a ONGs, antes que a comida se perca.
 - [Análise crítica do diagrama de sequência](docs/diagramas/critica-sequencia.md)
 - [Diagrama de estados da doação — versões inicial e final, análise e reflexão](docs/diagramas/estados-doacao.md)
 - [Análise crítica do diagrama de estados](docs/diagramas/critica-estados.md)
+- [Análise geral dos diagramas — versões finais contra código e regras](docs/diagramas/analise-geral.md)
 - [Retrospectivas](docs/retrospectivas/)
 - [Testes automatizados](tests/doacoes.test.js)
 - [Pipeline de integração contínua](.github/workflows/ci.yml)
