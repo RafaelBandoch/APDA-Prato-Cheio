@@ -62,5 +62,13 @@ export function criarApp() {
     }
   });
 
+  app.post('/api/doacoes/:id/retirar', async (req, res) => {
+    try {
+      res.json(await doacoes.confirmarRetirada(req.params.id, req.body?.ong))
+    } catch (erro) {
+      res.status(erro.status === 404 ? 404 : 400).json({ erro: erro.message })
+    }
+  })
+
   return app;
 }

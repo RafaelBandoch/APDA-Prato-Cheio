@@ -114,6 +114,12 @@ Incremento desta iteração: respeitar a janela de coleta informada pelo doador 
 
 Evidências em [tests/doacoes.test.js](../tests/doacoes.test.js): `persiste a janela de coleta informada pelo doador`, `aceita dentro da janela de coleta`, `aceite fora da janela de coleta retorna 400`, `aceite antes do início da janela retorna 400 mesmo sem fim definido`, `recusa publicar com o fim da janela antes do início`, `recusa publicar com data inválida na janela` e `recusa aceitar uma doação que já foi aceita por outra ONG`. O teste de dois aceites é sequencial; não há teste simultâneo. Incremento integrado pelos [PRs #11](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/11) e [#14](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/14).
 
+### HU04.4 — Confirmar retirada
+
+Incremento do encontro de 04/11, implementado na branch `entrega-04/11`: a ONG do aceite confirma a retirada, respeitando a validade e a janela de coleta. A transição atômica de `aceita` para `retirada` registra `retirada_em` no PostgreSQL e preserva o primeiro horário em confirmações repetidas ou simultâneas. A interface oferece a ação no modo ONG e exibe o resultado no acompanhamento.
+
+O [documento da história](historia-confirmar-retirada.md) contém os critérios, testes, limites e pendências de entrega. A confirmação registra a informação fornecida pela ONG; não há autenticação nem comprovação física de coleta. A liberação após não retirada permanece fora do escopo.
+
 ## Requisitos não funcionais
 
 1. **Integridade dos dados sob concorrência.** Uma oferta não pode ser atribuída a duas ONGs. Por isso, o repositório usa `UPDATE ... WHERE status = 'disponivel' RETURNING *` em uma única instrução; uma tentativa sem linha alterada é recusada pelo domínio. O teste sequencial confirma a recusa do segundo aceite; a cobertura de chamadas simultâneas permanece uma melhoria de teste.
@@ -126,4 +132,4 @@ Expiração e janela de coleta são regras funcionais associadas às histórias 
 
 Execute a suíte com o banco exclusivo descrito no [README](../README.md#banco-exclusivo-de-testes). Os testes cobrem as histórias, datas e fusos, dados obrigatórios, IDs inválidos e erros de aceite. Eles não comprovam a execução da interface no navegador, entrega de notificações externas ou operação do Supabase.
 
-Permanecem planejados: autenticação, credenciamento sanitário, confirmação de retirada, liberação após não retirada e expansão multicidade. A decisão #3 não possui implementação nem teste de reabertura nesta versão. As versões iniciais e revisadas dos dois tipos de diagrama estão indicadas na seção de diagramas.
+Permanecem planejados: autenticação, credenciamento sanitário, liberação após não retirada e expansão multicidade. A decisão #3 não possui implementação nem teste de reabertura nesta versão. As versões iniciais e revisadas dos dois tipos de diagrama estão indicadas na seção de diagramas e antecedem o incremento HU04.4.

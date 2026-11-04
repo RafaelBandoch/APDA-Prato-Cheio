@@ -61,6 +61,7 @@ export async function migrar() {
       ALTER TABLE doacoes ADD COLUMN IF NOT EXISTS ${col} TEXT
     `);
   }
+  await obterPool().query('ALTER TABLE doacoes ADD COLUMN IF NOT EXISTS retirada_em TIMESTAMPTZ')
 }
 
 /** Apaga todos os dados. Usado pelos testes. */

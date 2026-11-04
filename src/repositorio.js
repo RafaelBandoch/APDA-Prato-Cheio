@@ -56,6 +56,18 @@ export async function aceitar(id, ong) {
   return rows[0];
 }
 
+export async function confirmarRetirada(id, ong, agora) {
+  const { rows } = await query(`
+    UPDATE doacoes SET status = 'retirada', retirada_em = $3::timestamptz
+    WHERE id = $1 AND status = 'aceita' AND ong = $2
+      AND ($3::timestamptz AT TIME ZONE 'America/Sao_Paulo') < validade::date + TIME '22:00'
+      AND (NULLIF(janela_inicio, '') IS NULL OR $3::timestamptz >= NULLIF(janela_inicio, '')::timestamptz)
+      AND (NULLIF(janela_fim, '') IS NULL OR $3::timestamptz <= NULLIF(janela_fim, '')::timestamptz)
+    RETURNING *
+  `, [id, ong, agora])
+  return rows[0]
+}
+
 /**
  * Regra 1 (analise.md): expira doações disponíveis às 22h de São Paulo
  * no dia da validade. Devolve as linhas expiradas.
