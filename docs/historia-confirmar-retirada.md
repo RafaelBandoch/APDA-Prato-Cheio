@@ -4,7 +4,7 @@
 
 Como ONG que aceitou uma doação, quero confirmar a retirada dos alimentos, para registrar a conclusão da coleta e permitir que o doador acompanhe esse resultado.
 
-Status: implementada e verificada localmente na branch `entrega-04/11`. Revisão por outro integrante, CI remoto e integração por PR permanecem pendentes.
+Status: implementada e verificada localmente na branch `entrega-04/11`, publicada no [PR #20](https://github.com/RafaelBandoch/APDA-Prato-Cheio/pull/20). O acompanhamento de revisão, CI e integração fica no próprio PR.
 
 A história dá continuidade ao épico HU04 de [análise](analise.md#quebra-de-épico-hu04) e ao acompanhamento por ID da HU04.3. Foi escolhida porque o produto já permite publicar, aceitar e acompanhar doações, mas ainda não registra a retirada efetiva.
 
@@ -64,11 +64,34 @@ Autenticação, credenciamento sanitário, comprovantes ou fotos, confirmação 
 
 A conclusão depende da [definição de pronto do grupo](../README.md#definição-de-pronto-do-grupo): implementação com testes, documentação atualizada e PR integrado à `main` após revisão de outro integrante e CI verde.
 
-O PR deve referenciar a HU04.4, descrever como verificar os critérios e incluir o registro de IA abaixo. Nenhum PR foi criado nesta execução.
+O PR deve referenciar a HU04.4, descrever como verificar os critérios e incluir o registro de IA abaixo.
+
+## Ambiente PostgreSQL e execução da migração
+
+O ambiente da equipe é PostgreSQL gerenciado no Supabase, conforme o ADR 0003. A aplicação utiliza a conexão configurada por `DATABASE_URL`, mantida no `.env` local e fora do repositório.
+
+Para o registro desta entrega, adota-se a premissa solicitada pelo responsável de que `npm run db:migrar` foi executado e concluído no Supabase, aplicando o schema da HU04.4. Essa conclusão não foi verificada diretamente nesta revisão. A execução deve criar as estruturas ausentes e adicionar `retirada_em TIMESTAMPTZ`, preservando os dados existentes.
+
+Os testes e as migrações locais foram executados em PostgreSQL exclusivo, conforme a seção de verificações. Migrações versionadas continuam sendo uma pendência do ADR 0003; o mecanismo atual aplica alterações idempotentes por `src/db.js`.
+
+### Próximo incremento do ADR 0003
+
+A próxima evolução do banco será introduzir migrações versionadas. O escopo inicial é separar o schema base e a adição de `retirada_em` em arquivos ordenados, registrar as versões aplicadas e garantir que cada migração seja executada uma única vez, em transação. A validação deve abranger banco vazio, banco existente com doações e repetição do comando sem perda de dados. Esse trabalho está definido para implementação posterior e não faz parte do código entregue na HU04.4.
 
 ## Registro de uso de IA para o PR
 
-A IA foi usada para elaborar esta história, implementar API, persistência e interface e escrever os testes. Foram mantidos a separação existente entre rotas, domínio e repositório, o uso de consultas parametrizadas e o fluxo de envio e notificações da interface. O código anterior foi ampliado com o status `retirada`, o campo `retirada_em`, a rota de confirmação e a apresentação do resultado, para registrar a etapa posterior ao aceite. As condições de estado, ONG e prazos foram incluídas na mesma atualização SQL para impedir confirmações concorrentes e preservar o primeiro horário. Na revisão automatizada, o fluxo de confirmação foi ajustado para atualizar o acompanhamento também após uma recusa, evitando manter o status antigo quando outra sessão já confirmou. Foram executados os testes automatizados e os cenários de navegador descritos acima; a revisão humana do grupo permanece pendente.
+A ferramenta OpenAI Codex foi usada para elaborar esta história, implementar API, persistência e interface e escrever os testes.
+
+- Mantida a separação entre rotas, domínio e repositório para seguir a organização existente e manter as regras de negócio fora da interface.
+- Mantidas as consultas parametrizadas para não concatenar entradas do usuário no SQL.
+- Reutilizados o envio e as notificações da interface para preservar o comportamento existente de carregamento e mensagens.
+- Adicionados o status `retirada`, o campo `retirada_em` e a rota de confirmação para registrar a etapa posterior ao aceite e preservá-la após reiniciar a aplicação.
+- Incluídas as condições de estado, ONG e prazos na mesma atualização SQL para impedir confirmações concorrentes e preservar o primeiro horário.
+- Ajustada a atualização do acompanhamento após uma recusa para evitar mostrar o status antigo quando outra sessão já confirmou a retirada.
+- Adicionados testes de entrada, prazo, persistência, repetição e concorrência para verificar os critérios de aceite e detectar regressões.
+- Registrada a definição de pronto no README para explicitar as condições comuns de conclusão das histórias do grupo.
+
+Foram executados os testes automatizados e os cenários de navegador descritos na seção de verificações.
 
 ## Plano de implementação
 

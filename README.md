@@ -158,7 +158,7 @@ Uma história só é considerada pronta quando todas as condições abaixo forem
 
 Implementados: publicar, listar e aceitar doações; acompanhar por ID; expirar disponíveis às 22h de São Paulo no dia da validade; informar e validar janela de coleta; persistir em PostgreSQL. Os critérios e os testes correspondentes estão em [docs/projeto.md](docs/projeto.md#histórias-de-usuário).
 
-Autenticação, credenciamento sanitário, confirmação de retirada e liberação após não retirada continuam fora do incremento implementado. O aviso de expiração ao doador funciona apenas no navegador que publicou a doação, por `localStorage` e atualização das listas; não há envio externo nem agendador.
+Autenticação, credenciamento sanitário e liberação após não retirada ficaram fora do incremento da iteração 2. A confirmação de retirada foi implementada posteriormente, na HU04.4, descrita na seção seguinte. O aviso de expiração ao doador funciona apenas no navegador que publicou a doação, por `localStorage` e atualização das listas; não há envio externo nem agendador.
 
 A entrega exige um vídeo de 5 a 8 minutos com todos os integrantes, o branch `entrega-2` representando a versão entregue e os envios individuais no Teams. O roteiro existente em `docs/demo.md` é um modelo anterior de três minutos e deve ser adaptado à duração e ao conteúdo exigidos. Esta orientação não registra o andamento da gravação ou dos envios da equipe.
 
@@ -168,7 +168,7 @@ A [HU04.4 — Confirmar retirada](docs/historia-confirmar-retirada.md) foi imple
 
 Execute `npm run db:migrar` com o banco da aplicação antes de usar o incremento, ou inicie o servidor, que aplica o schema automaticamente. A atualização adiciona `retirada_em TIMESTAMPTZ` sem apagar dados. A API recebe `POST /api/doacoes/:id/retirar` com `{ "ong": "Nome da ONG" }`; o horário é definido pelo servidor. O projeto continua sem autenticação: o nome informado não comprova a identidade da ONG.
 
-A implementação e as verificações locais estão registradas no documento da história. A revisão de outro integrante, o CI remoto e a integração por PR permanecem pendentes para este incremento.
+A implementação e as verificações locais estão registradas no documento da história.
 
 ## Uso de IA
 
