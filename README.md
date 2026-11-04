@@ -16,6 +16,7 @@ Conecta doadores de alimentos excedentes a ONGs, antes que a comida se perca.
 ## Documentação e evidências
 
 - [Análise, histórias de usuário e regras de negócio](docs/analise.md)
+- [HU04.4 — Confirmar retirada da doação, priorizada para o encontro de 04/11](docs/historia-confirmar-retirada.md)
 - [Decisões de projeto e requisitos não funcionais](docs/projeto.md)
 - [Registros de decisões arquiteturais (ADRs)](docs/adr/)
 - [Atividade de diagramas — escolha dos tipos, versões, críticas e PRs](docs/projeto.md#diagramas)
@@ -138,6 +139,21 @@ git push -u origin historia/ong-aceita-doacao
 Abra o Pull Request no GitHub, preencha o template, espere o **CI ficar verde** e
 peça a revisão de **outro integrante**. Só então faça o merge.
 
+## Definição de pronto do grupo
+
+Esta definição reúne as condições comuns que o grupo exige para concluir qualquer história. Os critérios de aceite descrevem o comportamento esperado de cada funcionalidade; o registro do que já foi entregue fica nas seções de evolução do produto e nos documentos das histórias.
+
+Uma história só é considerada pronta quando todas as condições abaixo forem atendidas:
+
+- A funcionalidade está implementada e atende aos critérios de aceite da história.
+- Há testes automatizados cobrindo os critérios de aceite, e os testes passam localmente com `npm test`, usando um banco PostgreSQL exclusivo de testes.
+- O fluxo afetado foi verificado; quando houver mudança na interface, os estados relevantes foram conferidos em desktop e mobile.
+- A documentação afetada está atualizada, incluindo instruções de execução e decisões arquiteturais, quando aplicável.
+- O Pull Request identifica a história, descreve as alterações, explica como verificar e informa eventuais limitações.
+- Se houve uso de IA para gerar código, o PR registra o que foi mantido, o que foi alterado e por quê.
+- O CI do Pull Request está verde, e outro integrante do grupo revisou e aprovou as alterações.
+- O Pull Request foi integrado à `main` após a aprovação e o CI verde.
+
 ## Estado da iteração 2
 
 Implementados: publicar, listar e aceitar doações; acompanhar por ID; expirar disponíveis às 22h de São Paulo no dia da validade; informar e validar janela de coleta; persistir em PostgreSQL. Os critérios e os testes correspondentes estão em [docs/projeto.md](docs/projeto.md#histórias-de-usuário).
@@ -145,6 +161,14 @@ Implementados: publicar, listar e aceitar doações; acompanhar por ID; expirar 
 Autenticação, credenciamento sanitário, confirmação de retirada e liberação após não retirada continuam fora do incremento implementado. O aviso de expiração ao doador funciona apenas no navegador que publicou a doação, por `localStorage` e atualização das listas; não há envio externo nem agendador.
 
 A entrega exige um vídeo de 5 a 8 minutos com todos os integrantes, o branch `entrega-2` representando a versão entregue e os envios individuais no Teams. O roteiro existente em `docs/demo.md` é um modelo anterior de três minutos e deve ser adaptado à duração e ao conteúdo exigidos. Esta orientação não registra o andamento da gravação ou dos envios da equipe.
+
+## Incremento do encontro de 04/11
+
+A [HU04.4 — Confirmar retirada](docs/historia-confirmar-retirada.md) foi implementada na branch `entrega-04/11`. No modo ONG, informe o mesmo nome usado no aceite e selecione **Confirmar retirada** no acompanhamento. A confirmação exige uma doação aceita, dentro da validade e dos limites da janela de coleta. O acompanhamento passa a mostrar `retirada`, a ONG e o horário em São Paulo.
+
+Execute `npm run db:migrar` com o banco da aplicação antes de usar o incremento, ou inicie o servidor, que aplica o schema automaticamente. A atualização adiciona `retirada_em TIMESTAMPTZ` sem apagar dados. A API recebe `POST /api/doacoes/:id/retirar` com `{ "ong": "Nome da ONG" }`; o horário é definido pelo servidor. O projeto continua sem autenticação: o nome informado não comprova a identidade da ONG.
+
+A implementação e as verificações locais estão registradas no documento da história. A revisão de outro integrante, o CI remoto e a integração por PR permanecem pendentes para este incremento.
 
 ## Uso de IA
 

@@ -114,7 +114,7 @@
   </form>
 
   <fieldset id="secaoOng">
-    <legend>Aceitar doação</legend>
+    <legend>Aceitar e retirar doação</legend>
     <label for="ong">Nome da ONG</label>
     <input id="ong" value="Minha ONG">
     <h2>Doações disponíveis</h2>
@@ -125,7 +125,7 @@
     <button id="atualizar" type="button" class="secundario">Atualizar</button>
   </div>
   <p id="estadoListas" class="ajuda" role="status"></p>
-  <p class="ajuda">Veja as doações disponíveis, aceitas e expiradas.</p>
+  <p class="ajuda">Veja as doações disponíveis, aceitas, retiradas e expiradas.</p>
   <ul id="acompanhar"></ul>
   </main>
 
@@ -235,8 +235,10 @@
         aoConcluir?.(resultado);
         if (atualizacaoEmCurso) await atualizacaoEmCurso;
         await atualizarListas();
+        return true
       } catch (erro) {
         mostrarToast(erro.message, 'erro');
+        return false
       } finally {
         botao.disabled = false;
         botao.textContent = rotulo;
@@ -304,10 +306,36 @@
         } else if (d.status === 'expirada') {
           status.classList.add('expirada');
           status.textContent = 'Expirada';
+        } else if (d.status === 'retirada') {
+          status.textContent = `Retirada por ${d.ong}`
         } else {
           status.textContent = 'Disponível';
         }
         li.appendChild(status);
+        if (d.retirada_em) {
+          const horario = document.createElement('time')
+          horario.className = 'detalhes'
+          horario.dateTime = d.retirada_em
+          horario.textContent = `Retirada confirmada em ${new Date(d.retirada_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} (São Paulo)`
+          li.appendChild(horario)
+        }
+        if (d.status === 'aceita' && document.getElementById('modo').value === 'ong') {
+          const botao = document.createElement('button')
+          botao.type = 'button'
+          botao.textContent = 'Confirmar retirada'
+          botao.setAttribute('aria-label', `Confirmar retirada de ${d.tipo}`)
+          const handleConfirmarRetirada = async () => {
+            const confirmou = await realizarAcao(
+              botao,
+              `/api/doacoes/${d.id}/retirar`,
+              { ong: document.getElementById('ong').value },
+              'Retirada confirmada com sucesso!'
+            )
+            if (!confirmou) await atualizarListas()
+          }
+          botao.onclick = handleConfirmarRetirada
+          li.appendChild(botao)
+        }
         acompanhar.appendChild(li);
       }
       avisarExpiradas(doacoes);

@@ -726,3 +726,113 @@ describe('acompanhar doação por ID', () => {
     expect(res.body.erro).toMatch(/não encontrada/i);
   });
 });
+
+describe('HU04.4 — confirmar retirada', () => {
+  beforeEach(async () => { await migrar(); await limparBanco(); });
+  afterAll(async () => { await encerrar(); });
+
+  const criarAceita = async (campos = {}) => {
+    const criada = await request(app).post('/api/doacoes').send({
+      tipo: 'Sopa', quantidade: '10 porções', validade: '2026-08-01', ...campos,
+    });
+    expect(criada.status).toBe(201);
+    const aceita = await request(app).post(`/api/doacoes/${criada.body.id}/aceitar`).send({ ong: 'ONG X' });
+    expect(aceita.status).toBe(200);
+    return aceita.body;
+  };
+
+  it('registra retirada com horário do servidor, preserva o aceite e persiste após reconectar', async () => {
+    const aceita = await criarAceita();
+    const res = await request(app).post(`/api/doacoes/${aceita.id}/retirar`)
+      .send({ ong: 'ONG X', retirada_em: '2000-01-01T00:00:00Z' });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ status: 'retirada', ong: 'ONG X', retirada_em: '2026-08-01T15:00:00.000Z' });
+    await encerrar();
+    const consulta = await request(criarApp()).get(`/api/doacoes/${aceita.id}`);
+    expect(consulta.body).toEqual(res.body);
+    expect((await request(app).get('/api/doacoes/todas')).body).toContainEqual(res.body);
+    expect((await request(app).get('/api/doacoes')).body).toEqual([]);
+    expect((await request(app).post(`/api/doacoes/${aceita.id}/aceitar`).send({ ong: 'ONG Y' })).status).toBe(400);
+    expect((await request(app).get(`/api/doacoes/${aceita.id}`)).body).toEqual(res.body);
+  });
+
+  it.each([undefined, null, '', '   ', {}, 123, ['ONG X'], 'ONG Y'])('recusa ONG inválida ou divergente: %j', async ong => {
+    const aceita = await criarAceita();
+    const res = await request(app).post(`/api/doacoes/${aceita.id}/retirar`).send({ ong });
+    expect(res.status).toBe(400);
+    expect((await request(app).get(`/api/doacoes/${aceita.id}`)).body).toEqual(aceita);
+  });
+
+  it.each(['disponivel', 'expirada'])('recusa doação %s sem alterar seus dados', async status => {
+    const criada = await request(app).post('/api/doacoes').send({ tipo: 'Sopa', quantidade: '1L', validade: '2026-08-01' });
+    if (status === 'expirada') vi.setSystemTime(new Date('2026-08-02T01:00:00Z'));
+    const antes = await request(app).get(`/api/doacoes/${criada.body.id}`);
+    expect(antes.body.status).toBe(status);
+    const res = await request(app).post(`/api/doacoes/${criada.body.id}/retirar`).send({ ong: 'ONG X' });
+    expect(res.status).toBe(400);
+    expect((await request(app).get(`/api/doacoes/${criada.body.id}`)).body).toEqual(antes.body);
+  });
+
+  it.each(['0', '-1', 'abc', '1.2', '2147483648', '999999'])('recusa ID inválido ou inexistente: %s', async id => {
+    const res = await request(app).post(`/api/doacoes/${id}/retirar`).send({ ong: 'ONG X' });
+    expect(res.status).toBe(404);
+    expect(res.body.erro).toMatch(/não encontrada/);
+  });
+
+  it.each([
+    ['2026-08-02T00:59:59.999Z', 200],
+    ['2026-08-02T01:00:00.000Z', 400],
+    ['2026-08-02T03:00:00.000Z', 400],
+  ])('respeita a validade às 22h de São Paulo: %s', async (agora, esperado) => {
+    const aceita = await criarAceita();
+    vi.setSystemTime(new Date(agora));
+    const res = await request(app).post(`/api/doacoes/${aceita.id}/retirar`).send({ ong: 'ONG X' });
+    expect(res.status).toBe(esperado);
+    if (esperado === 400) expect((await request(app).get(`/api/doacoes/${aceita.id}`)).body).toEqual(aceita);
+  });
+
+  it.each([
+    [{ janela_inicio: '2026-08-01T14:00:00Z' }, '2026-08-01T13:59:59Z', 400],
+    [{ janela_inicio: '2026-08-01T14:00:00Z' }, '2026-08-01T14:00:00Z', 200],
+    [{ janela_fim: '2026-08-01T16:00:00Z' }, '2026-08-01T16:00:00Z', 200],
+    [{ janela_fim: '2026-08-01T16:00:00Z' }, '2026-08-01T16:00:00.001Z', 400],
+    [{ janela_inicio: '2026-08-01T14:00:00Z', janela_fim: '2026-08-01T16:00:00Z' }, '2026-08-01T15:30:00Z', 200],
+  ])('respeita os limites independentes de coleta: %j em %s', async (campos, agora, esperado) => {
+    const aceita = await criarAceita(campos);
+    vi.setSystemTime(new Date(agora));
+    const res = await request(app).post(`/api/doacoes/${aceita.id}/retirar`).send({ ong: 'ONG X' });
+    expect(res.status).toBe(esperado);
+    if (esperado === 400) expect((await request(app).get(`/api/doacoes/${aceita.id}`)).body).toEqual(aceita);
+  });
+
+  it('preserva o primeiro horário ao repetir a confirmação', async () => {
+    const aceita = await criarAceita();
+    const primeira = await request(app).post(`/api/doacoes/${aceita.id}/retirar`).send({ ong: 'ONG X' });
+    expect(primeira.status).toBe(200);
+    vi.setSystemTime(new Date('2026-08-01T16:00:00Z'));
+    const segunda = await request(app).post(`/api/doacoes/${aceita.id}/retirar`).send({ ong: 'ONG X' });
+    expect(segunda.status).toBe(400);
+    expect(segunda.body.erro).toMatch(/já.*registrada/);
+    expect((await request(app).get(`/api/doacoes/${aceita.id}`)).body).toEqual(primeira.body);
+  });
+
+  it('somente uma confirmação simultânea altera a doação', async () => {
+    const aceita = await criarAceita();
+    const respostas = await Promise.all(Array.from({ length: 5 }, () =>
+      request(app).post(`/api/doacoes/${aceita.id}/retirar`).send({ ong: 'ONG X' })));
+    expect(respostas.map(res => res.status).sort()).toEqual([200, 400, 400, 400, 400]);
+    const vencedora = respostas.find(res => res.status === 200);
+    expect((await request(app).get(`/api/doacoes/${aceita.id}`)).body).toEqual(vencedora.body);
+    for (const recusada of respostas.filter(res => res.status === 400)) {
+      expect(recusada.body.erro).toMatch(/já.*registrada/);
+    }
+  });
+
+  it('reaplica o schema sem apagar a retirada registrada', async () => {
+    const aceita = await criarAceita();
+    const retirada = await request(app).post(`/api/doacoes/${aceita.id}/retirar`).send({ ong: 'ONG X' });
+    expect(retirada.status).toBe(200);
+    await migrar();
+    expect((await request(app).get(`/api/doacoes/${aceita.id}`)).body).toEqual(retirada.body);
+  });
+});

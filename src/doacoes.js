@@ -83,3 +83,33 @@ export async function expirarVencidas() {
 export async function buscarPorId(id) {
   return repo.buscarPorId(id);
 }
+
+export async function confirmarRetirada(id, ong) {
+  const existente = await repo.buscarPorId(id)
+  if (!existente) {
+    const erro = new Error('doação não encontrada')
+    erro.status = 404
+    throw erro
+  }
+  if (typeof ong !== 'string' || !ong.trim()) {
+    throw new Error('Informe o nome da ONG responsável pelo aceite')
+  }
+  if (existente.status === 'retirada') {
+    throw new Error('retirada já registrada')
+  }
+  if (existente.status !== 'aceita') {
+    throw new Error('somente doações aceitas podem ter a retirada confirmada')
+  }
+  if (ong !== existente.ong) {
+    throw new Error('a ONG deve ser a mesma registrada no aceite')
+  }
+
+  const atualizada = await repo.confirmarRetirada(id, ong, new Date())
+  if (atualizada) return atualizada
+
+  const atual = await repo.buscarPorId(id)
+  if (atual?.status === 'retirada') {
+    throw new Error('retirada já registrada')
+  }
+  throw new Error('retirada fora da janela de coleta ou do prazo de validade')
+}
