@@ -836,3 +836,38 @@ describe('HU04.4 — confirmar retirada', () => {
     expect((await request(app).get(`/api/doacoes/${aceita.id}`)).body).toEqual(retirada.body);
   });
 });
+
+// Atividade 2 — casos limite que os critérios originais da HU00 não previam.
+describe('casos limite da HU00', () => {
+  beforeEach(async () => {
+    await migrar();
+    await limparBanco();
+  });
+
+  afterAll(async () => {
+    await encerrar();
+  });
+
+  it('recusa publicar com só a quantidade vazia e não grava', async () => {
+    const res = await request(app)
+      .post('/api/doacoes')
+      .send({ tipo: 'Sopa', quantidade: '', validade: '2026-08-01' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toMatch(/obrigat/i);
+    expect((await request(app).get('/api/doacoes/todas')).body).toEqual([]);
+  });
+
+  it('não troca a ONG quando uma segunda ONG tenta aceitar', async () => {
+    const { body: doacao } = await request(app)
+      .post('/api/doacoes')
+      .send({ tipo: 'Pão', quantidade: '20 unidades', validade: '2026-08-02' });
+    await request(app).post(`/api/doacoes/${doacao.id}/aceitar`).send({ ong: 'Primeira ONG' });
+
+    await request(app).post(`/api/doacoes/${doacao.id}/aceitar`).send({ ong: 'Segunda ONG' });
+
+    const res = await request(app).get(`/api/doacoes/${doacao.id}`);
+    expect(res.body.status).toBe('aceita');
+    expect(res.body.ong).toBe('Primeira ONG');
+  });
+});
