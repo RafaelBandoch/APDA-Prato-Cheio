@@ -25,6 +25,27 @@ export function criarApp() {
     }
   });
 
+  app.get('/api/doacoes/:id', async (req, res) => {
+    try {
+      // Aplica a Regra 1 antes de ler, como as listagens: o status devolvido já sai atualizado.
+      await doacoes.expirarVencidas();
+      const doacao = await doacoes.buscarPorId(req.params.id);
+      if (!doacao) return res.status(404).json({ erro: 'doação não encontrada' });
+      res.json(doacao);
+    } catch (erro) {
+      res.status(400).json({ erro: erro.message });
+    }
+  });
+
+  app.post('/api/doacoes/expirar', async (req, res) => {
+    try {
+      const expiradas = await doacoes.expirarVencidas();
+      res.json({ expiradas });
+    } catch (erro) {
+      res.status(400).json({ erro: erro.message });
+    }
+  });
+
   app.post('/api/doacoes', async (req, res) => {
     try {
       res.status(201).json(await doacoes.criarDoacao(req.body));
@@ -40,6 +61,14 @@ export function criarApp() {
       res.status(400).json({ erro: erro.message });
     }
   });
+
+  app.post('/api/doacoes/:id/retirar', async (req, res) => {
+    try {
+      res.json(await doacoes.confirmarRetirada(req.params.id, req.body?.ong))
+    } catch (erro) {
+      res.status(erro.status === 404 ? 404 : 400).json({ erro: erro.message })
+    }
+  })
 
   return app;
 }
