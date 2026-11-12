@@ -1,25 +1,26 @@
 // Regras de negócio das doações.
 import * as repo from './repositorio.js';
 
-// História zero — "um doador publica uma doação".
-// Critério: tipo, quantidade e validade são obrigatórios.
-export async function criarDoacao({ tipo, quantidade, validade, janela_inicio = null, janela_fim = null }) {
-  if (!tipo || !quantidade || !validade) {
-    throw new Error('tipo, quantidade e validade são obrigatórios');
-  }
+function hojeEmSaoPaulo() {
+  const partes = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date());
+  const parte = tipo => partes.find(p => p.type === tipo).value;
+  return `${parte('year')}-${parte('month')}-${parte('day')}`;
+}
+
+function validarValidade(validade) {
   const data = typeof validade === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(validade)
     ? new Date(`${validade}T00:00:00Z`) : new Date(NaN);
   if (!Number.isFinite(data.getTime()) || data.toISOString().slice(0, 10) !== validade) {
     throw new Error('Informe uma data de validade válida no formato AAAA-MM-DD');
   }
-  const partes = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).formatToParts(new Date());
-  const parte = tipo => partes.find(p => p.type === tipo).value;
-  const hoje = `${parte('year')}-${parte('month')}-${parte('day')}`;
-  if (validade < hoje) {
+  if (validade < hojeEmSaoPaulo()) {
     throw new Error('A validade deve ser hoje ou uma data futura');
   }
+}
+
+function validarJanelaColeta(janela_inicio, janela_fim) {
   for (const limite of [janela_inicio, janela_fim]) {
     if (limite && Number.isNaN(Date.parse(limite))) {
       throw new Error('Informe datas válidas para a janela de coleta');
@@ -28,6 +29,24 @@ export async function criarDoacao({ tipo, quantidade, validade, janela_inicio = 
   if (janela_inicio && janela_fim && Date.parse(janela_fim) <= Date.parse(janela_inicio)) {
     throw new Error('O fim da janela de coleta deve ser depois do início');
   }
+}
+
+function validarJanelaAceite(doacao, agora) {
+  const antesDoInicio = doacao.janela_inicio && agora < Date.parse(doacao.janela_inicio);
+  const depoisDoFim = doacao.janela_fim && agora > Date.parse(doacao.janela_fim);
+  if (antesDoInicio || depoisDoFim) {
+    throw new Error('aceite fora da janela de coleta definida pelo doador');
+  }
+}
+
+// História zero — "um doador publica uma doação".
+// Critério: tipo, quantidade e validade são obrigatórios.
+export async function criarDoacao({ tipo, quantidade, validade, janela_inicio = null, janela_fim = null }) {
+  if (!tipo || !quantidade || !validade) {
+    throw new Error('tipo, quantidade e validade são obrigatórios');
+  }
+  validarValidade(validade);
+  validarJanelaColeta(janela_inicio, janela_fim);
   return repo.inserir({ tipo, quantidade, validade, janela_inicio, janela_fim });
 }
 
@@ -61,13 +80,7 @@ export async function aceitar(id, ong) {
   if (existente.status !== 'disponivel') {
     throw new Error('doação já foi aceita por outra ONG');
   }
-  // Cada limite da janela vale sozinho: só início, só fim ou os dois.
-  const agora = Date.now();
-  const antesDoInicio = existente.janela_inicio && agora < Date.parse(existente.janela_inicio);
-  const depoisDoFim = existente.janela_fim && agora > Date.parse(existente.janela_fim);
-  if (antesDoInicio || depoisDoFim) {
-    throw new Error('aceite fora da janela de coleta definida pelo doador');
-  }
+  validarJanelaAceite(existente, Date.now());
 
   const atualizada = await repo.aceitar(id, ong);
   if (!atualizada) {
