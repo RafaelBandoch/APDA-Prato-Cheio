@@ -1,6 +1,16 @@
 import express from 'express';
 import * as doacoes from './doacoes.js';
 
+function tratarErros(handler, statusDoErro = () => 400) {
+  return async (req, res) => {
+    try {
+      await handler(req, res);
+    } catch (erro) {
+      res.status(statusDoErro(erro)).json({ erro: erro.message });
+    }
+  };
+}
+
 export function criarApp() {
   const app = express();
   app.use(express.json());
@@ -9,66 +19,41 @@ export function criarApp() {
   // Verificação de saúde: usada pelo CI para provar que a aplicação sobe.
   app.get('/api/saude', (req, res) => res.json({ ok: true }));
 
-  app.get('/api/doacoes', async (req, res) => {
-    try {
-      res.json(await doacoes.listarDisponiveis());
-    } catch (erro) {
-      res.status(400).json({ erro: erro.message });
-    }
-  });
+  app.get('/api/doacoes', tratarErros(async (req, res) => {
+    res.json(await doacoes.listarDisponiveis());
+  }));
 
-  app.get('/api/doacoes/todas', async (req, res) => {
-    try {
-      res.json(await doacoes.listarTodas());
-    } catch (erro) {
-      res.status(400).json({ erro: erro.message });
-    }
-  });
+  app.get('/api/doacoes/todas', tratarErros(async (req, res) => {
+    res.json(await doacoes.listarTodas());
+  }));
 
-  app.get('/api/doacoes/:id', async (req, res) => {
-    try {
-      // Aplica a Regra 1 antes de ler, como as listagens: o status devolvido já sai atualizado.
-      await doacoes.expirarVencidas();
-      const doacao = await doacoes.buscarPorId(req.params.id);
-      if (!doacao) return res.status(404).json({ erro: 'doação não encontrada' });
-      res.json(doacao);
-    } catch (erro) {
-      res.status(400).json({ erro: erro.message });
-    }
-  });
+  app.get('/api/doacoes/:id', tratarErros(async (req, res) => {
+    // Aplica a Regra 1 antes de ler, como as listagens: o status devolvido já sai atualizado.
+    await doacoes.expirarVencidas();
+    const doacao = await doacoes.buscarPorId(req.params.id);
+    if (!doacao) return res.status(404).json({ erro: 'doação não encontrada' });
+    res.json(doacao);
+  }));
 
-  app.post('/api/doacoes/expirar', async (req, res) => {
-    try {
-      const expiradas = await doacoes.expirarVencidas();
-      res.json({ expiradas });
-    } catch (erro) {
-      res.status(400).json({ erro: erro.message });
-    }
-  });
+  app.post('/api/doacoes/expirar', tratarErros(async (req, res) => {
+    const expiradas = await doacoes.expirarVencidas();
+    res.json({ expiradas });
+  }));
 
-  app.post('/api/doacoes', async (req, res) => {
-    try {
-      res.status(201).json(await doacoes.criarDoacao(req.body));
-    } catch (erro) {
-      res.status(400).json({ erro: erro.message });
-    }
-  });
+  app.post('/api/doacoes', tratarErros(async (req, res) => {
+    res.status(201).json(await doacoes.criarDoacao(req.body));
+  }));
 
-  app.post('/api/doacoes/:id/aceitar', async (req, res) => {
-    try {
-      res.json(await doacoes.aceitar(req.params.id, req.body?.ong ?? 'ONG'));
-    } catch (erro) {
-      res.status(400).json({ erro: erro.message });
-    }
-  });
+  app.post('/api/doacoes/:id/aceitar', tratarErros(async (req, res) => {
+    res.json(await doacoes.aceitar(req.params.id, req.body?.ong ?? 'ONG'));
+  }));
 
-  app.post('/api/doacoes/:id/retirar', async (req, res) => {
-    try {
-      res.json(await doacoes.confirmarRetirada(req.params.id, req.body?.ong))
-    } catch (erro) {
-      res.status(erro.status === 404 ? 404 : 400).json({ erro: erro.message })
-    }
-  })
+  app.post('/api/doacoes/:id/retirar', tratarErros(
+    async (req, res) => {
+      res.json(await doacoes.confirmarRetirada(req.params.id, req.body?.ong));
+    },
+    erro => erro.status === 404 ? 404 : 400,
+  ));
 
   return app;
 }
